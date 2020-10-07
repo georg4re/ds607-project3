@@ -1,0 +1,124 @@
+---
+title: "trying to scrape indeed with RSelenium"
+author: "Jack Wright"
+date: "10/6/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Getting started
+Download Docker
+https://www.docker.com/products/docker-desktop
+
+Docker
+-container for the Rselenium server to live in 
+-go through tutorial inside docker
+
+RSelenium
+
+-install.packages("RSelenium")
+
+Optional
+-install browser extension "selectorgadget"
+https://selectorgadget.com/
+
+
+
+
+
+Setting up server in command line
+                 
+docker run -d -p 4445:4444 selenium/standalone-chrome
+
+
+## connecting to RSelenium Server
+
+```{r}
+library(RSelenium)
+remDr <- remoteDriver(
+  remoteServerAddr = "localhost",
+  port = 4455L, #whatever port number you picked
+  browserName = "chrome"
+)
+remDr$open()
+
+
+```
+
+
+Navigate to indeed "data science" "new york"
+
+-we could look over multiple cities or multiple search terms
+
+```{r}
+remDr$navigate("https://www.indeed.com/jobs?q=data+science&l=New+York")
+remDr$maxWindowSize()
+remDr$refresh()
+remDr$screenshot(display=TRUE)
+
+```
+
+#trying to search for "clickcards"
+
+```{r}
+webElems<-remDr$findElements(using="css",value=".clickcard")
+clickcard_info<-unlist(lapply(webElems,function(x){x$getElementText()}))
+clickcard_info
+```
+
+
+## sending event to element
+
+```{r}
+
+webElems<-remDr$findElements(using = "css selector",".jobtitle")
+
+resTitles<-unlist(lapply(webElems,function(x){x$getElementText()}))
+
+resTitles
+
+```
+
+#want to click the first link
+
+(works up until the click)
+
+```{r}
+
+
+
+#move mouse to element selected
+
+remDr$mouseMoveToLocation( webElement=webElems[[1]])
+
+remDr$click()
+
+#frame is opened for the job
+remDr$maxWindowSize()
+remDr$screenshot(display=TRUE)
+
+webElems<-remDr$findElements(using="tag name","iframe")
+
+
+#pulls link for job posting's own page
+sapply(webElems,function(x){x$getElementAttribute("src")})
+
+remDr$switchToFrame(webElems[[1]])
+#XML::htmlParse(remDr$getPageSource()[[1]])
+
+insideElems<-remDr$findElements(using="id",value = "jobDescriptionText")
+jdescription<-sapply(insideElems,function(x){x$getElementText()})
+
+jdescription
+
+```
+
+
+
+```{r}
+
+
+```
+
