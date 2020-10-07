@@ -5,10 +5,17 @@ library(tidytext)
 library(stringr)
 
 
+<<<<<<< Updated upstream:twitter scraper.R
 key_api<-"xxx"
 secret_api<-"wxxn"
 token_acces<-"xxx"
 token_secret<-"xxxx"
+=======
+#put my password csv on a private github 
+#so i can get it from any computer
+location<-"C:\\password-files-for-r\\twitter_passwords.csv"
+twitter_passwords<-read.csv(location)
+>>>>>>> Stashed changes:twitter scraper_no_password.R
 
 
 
