@@ -1,0 +1,405 @@
+---
+title: "Project3"
+author: "LeTicia Cancel"
+date: "9/29/2020"
+output: html_document
+---
+```{r}
+
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+libraries
+```{r}
+#library(DBI)
+#library(RCurl)
+#library(RMariaDB)
+library(rvest)
+library(tidyverse)
+```
+
+connect to DB
+```{r}
+
+```
+
+Build website link
+```{r}
+siteOriginal <- "https://www.indeed.com/jobs?q=data+science&l=New+York"
+
+site <- "https://www.indeed.com/viewjob?jk=0a62930573735560&tk=1ejvo6qkjsa7u800&from=serp&vjs=3&advn=257105267871190&adid=358939065&ad=-6NYlbfkN0CScSxRBn_n5hzPBw7DFYVJJAQwrBP-UaBS3EDdzxnGq3ESEvvzuIB5zuczDSGx2r5x8V7im8wYaETWBZboRXBPatjYGaLTyWgMWoPCejLs1ufFlEANGuzUyEnyhyFiIM2nyI1aNDF0-JMkdyu38-gSriDg7NSPNy-Oi0yPYhFb5OZQJnEWTMgx7fZHLdGTreNGwmy8iqeiNvBRGdxTk9WNLNPI1IN8Y6791xtp4DKUm691lZNCWs03bNoWD7NmPfP9HrbyzWT8peh7JiEZxhH9nePAWbeSvwAd423MkgGBmQ==&sjdu=hHilnw4yDvzGgTEGJuhJbSYA9BuEN8orEGs-_x0_6pjlsxWga9AfraMSOvtBvfAp0gld5AFj-C0mjgbAiB76ZfWcBG088XsDhMC-M7WULMW2o2DT1sKJMrfvYSgyAlFBOdDpNO5_DvWFJazXaLuHCO7imuxa1EHtMLGa9wA5kepasGUorUwQ7KoX6HUph0Mj1eGyUH7CPFw_CveCOXOuhA"
+
+
+listing2 <- read_html(site)
+listing <- read_html(siteOriginal)
+
+length(jobURL)
+
+#job title
+listing %>%
+  html_nodes("div") %>%
+  html_nodes(".jobtitle.turnstileLink") %>%
+  html_attr("title") %>%
+  as.character()
+
+
+#location
+listing %>%
+  html_nodes("div") %>%
+  html_nodes(".location.accessible-contrast-color-location") %>%
+  html_text()
+
+
+  
+##### From the posting's URL #############
+
+#job url
+x <- listing %>%
+  html_nodes("div") %>%
+  html_nodes(".title") %>%
+  html_nodes("a") %>%
+  html_attr("href") %>%
+  as.character()
+
+head(x)
+##substring
+x<- "/rc/clk?jk=5042986c78adf6bc&fccid=58c732f14833248a&vjs=3"
+sub(x, "/rc/clk.*")
+
+#build job URL to scrape description from each job
+str_c("https://www.indeed.com",jobURL)
+
+
+#company
+listing2 %>%
+  html_nodes("div") %>%
+  html_nodes(".icl-u-lg-mr--sm.icl-u-xs-mr--xs") %>%
+  html_text()
+
+
+#description
+listing2 %>%
+  html_nodes("div") %>%
+  html_nodes(".jobsearch-jobDescriptionText") %>%
+  html_text()
+
+#company rating
+listing2 %>%
+  html_nodes("div") %>%
+  html_nodes(".icl-Ratings-starsCountWrapper") %>%
+  html_attr("aria-label") %>%
+  as.character()
+
+#review count
+listing2 %>%
+  html_nodes("div") %>%
+  html_nodes(".icl-Ratings-starsCountWrapper") %>%
+  html_nodes(".icl-Ratings-count") %>%
+  html_text()
+
+### Tibble to build
+#tibble(jobTitle, company, location, rating, totalReviews, description)
+
+https://www.indeed.com/jobs?q=data+science&l=New+York/rc/clk?jk=5042986c78adf6bc&fccid=58c732f14833248a&vjs=3
+https://www.indeed.com/jobs?q=data+science&l=New+York&start=10
+https://www.indeed.com/jobs?q=data+science&l=New+York&start=20
+https://www.indeed.com/jobs?q=data+science&l=New+York&start=30
+
+#pieces of site
+site1 <- "https://www.indeed.com/jobs?q=data+science&l=New+York"
+site2 <- "&start="
+#loop number of pages 
+pages = 4
+x = 1
+
+
+
+for (i in 1:pages){
+  #first page
+  if (i == 1) {
+    
+    #get website
+    listing <- read_html(site1)
+    
+    #get job title
+    jobTitle <- listing %>%
+      html_nodes("div") %>%
+      html_nodes(".jobtitle.turnstileLink") %>%
+      html_attr("title") %>%
+      as.character()
+    
+    #get job location
+    location <- listing %>%
+      html_nodes("div") %>%
+      html_nodes(".location.accessible-contrast-color-location") %>%
+      html_text()
+    
+    #get URL to specific job posting 
+    url <- listing %>%
+      html_nodes("div") %>%
+      html_nodes(".title") %>%
+      html_nodes("a") %>%
+      html_attr("href") %>%
+      as.character()
+    
+    #build full URL from job posting
+    fullURL <- str_c("https://www.indeed.com",url)
+    
+    #loop through URL
+    for(j in 1:length(fullURL)){
+          
+        #get the rest of the job description
+        listing2 <- read_html(fullURL[j])
+        
+        #get company name
+        company <- listing2 %>%
+          html_nodes("div") %>%
+          html_nodes(".icl-u-lg-mr--sm.icl-u-xs-mr--xs") %>%
+          html_text()
+        
+        #get full job description
+        description <- listing2 %>%
+          html_nodes("div") %>%
+          html_nodes(".jobsearch-jobDescriptionText") %>%
+          html_text()
+        
+        #get company rating
+        rating <- listing2 %>%
+          html_nodes("div") %>%
+          html_nodes(".icl-Ratings-starsCountWrapper") %>%
+          html_attr("aria-label") %>%
+          as.character()
+        
+        #get total count of company reviews
+        totalReviews <- listing2 %>%
+          html_nodes("div") %>%
+          html_nodes(".icl-Ratings-starsCountWrapper") %>%
+          html_nodes(".icl-Ratings-count") %>%
+          html_text()
+        
+        indeedJobs <- cbind(jobTitle,location,company,description,rating,totalReviews,fullURL)
+    }
+  }
+  #pages 2-4
+  else{
+    
+    print("done")
+    head(indeedJobs)
+    
+  }
+}
+
+
+head(indeedJobs)
+```
+
+test 2
+```{r}
+url <- "https://www.linkedin.com/jobs/search?keywords=data%20scientist&location=Brooklyn%2C%20New%20York%2C%20United%20States&geoId=&trk=homepage-jobseeker_jobs-search-bar_search-submit&redirect=false&position=1&pageNum=0"
+
+linkedIn <- read_html(url)
+
+#URL
+test <- linkedIn %>%
+  html_nodes("div") %>%
+  html_nodes(".result-card__full-card-link") %>%
+  html_attr("href") %>%
+  as.character()
+test
+class(test)
+
+#example
+url2 <- "https://www.linkedin.com/jobs/view/data-scientist-at-wework-2166986341?refId=0323fa31-205d-4990-a8cd-0d0041b58847&position=1&pageNum=0&trk=public_jobs_job-result-card_result-card_full-click"
+
+url <- read_html(url2)
+
+length(url)
+#job title
+url %>%
+  html_nodes(".topcard__title") %>%
+  html_text()
+
+#company
+url %>%
+  html_nodes(".topcard__flavor--black-link") %>%
+  html_text()
+
+#location 
+url %>% 
+  html_nodes(".topcard__flavor.topcard__flavor--bullet") %>%
+  html_text()
+
+#number of applicants
+url %>%
+  html_nodes(".num-applicants__caption") %>%
+  html_text()
+
+#description
+url %>%
+  html_nodes(".description__text") %>%
+  html_text()
+
+#Level
+url %>%
+  html_nodes(".job-criteria__text--criteria") %>%
+  html_text()
+
+```
+
+loop
+```{r}
+
+jobURL <- linkedIn %>%
+  html_nodes("div") %>%
+  html_nodes(".result-card__full-card-link") %>%
+  html_attr("href") %>%
+  as.character()
+  
+  
+length(jobURL)
+jobURL[1]
+for (i in 1:length(jobURL)){
+  url <- read_html(jobURL[i])
+  
+  #job title
+  jobTitle <- url %>%
+    html_nodes(".topcard__title") %>%
+    html_text()
+    
+  #company
+  company <- url %>%
+    html_nodes(".topcard__flavor--black-link") %>%
+    html_text()
+    
+  #location
+  location <- url %>%
+    html_nodes(".topcard__flavor.topcard__flavor--bullet") %>%
+    html_text()
+    
+  #number of applicants
+  applicants <- url %>%
+    html_nodes(".num-applicants__caption") %>%
+    html_text()
+    
+  #description
+  description <- url %>%
+    html_nodes(".description__text") %>%
+    html_text()
+  
+  linkedInJobs <- cbind(jobTitle,company,location,applicants,description,url)
+}
+
+linkedInJobs
+
+
+for (i in 1:length(url)) {
+  #URL
+  jobURL <- linkedIn %>%
+    html_nodes("div") %>%
+    html_nodes(".result-card__full-card-link") %>%
+    html_attr("href") %>%
+    as.character()
+  
+  for (x in 1:length(jobURL)) {
+    url <- read_html(jobURL[x])
+    
+    #job title
+    jobTitle <- url %>%
+      html_nodes(".topcard__title") %>%
+      html_text() %>%
+      data.frame(Job_Title = ., stringsAsFactors = F)
+    
+    #company
+    company <- url %>%
+      html_nodes(".topcard__flavor--black-link") %>%
+      html_text() %>%
+      data.frame(Company_Name = ., stringsAsFactors = F)
+    
+    #location
+    location <- url %>%
+      html_nodes(".topcard__flavor.topcard__flavor--bullet") %>%
+      html_text() %>%
+      data.frame(Company_Location = ., stringsAsFactors = F)
+    
+    #number of applicants
+    applicants <- url %>%
+      html_nodes(".num-applicants__caption") %>%
+      html_text() %>%
+      data.frame(Num_Apps = ., stringsAsFactors = F)
+    
+    #description
+    description <- url %>%
+      html_nodes(".description__text") %>%
+      html_text() %>%
+      data.frame(Job_Description = ., stringsAsFactors = F)
+    
+    linkedInJobs <- cbind(jobTitle,company,location,applicants,description)
+  }
+  
+}
+
+head(linkedInJobs)
+#URL
+jobURL <- linkedIn %>%
+  html_nodes("div") %>%
+  html_nodes(".result-card__full-card-link") %>%
+  html_attr("href") %>%
+  as.character()
+
+length(jobURL)
+jobURL[8]
+
+linkedInJobs <- data.frame()
+
+for (x in 1:length(jobURL)) {
+  url <- read_html(jobURL[x])
+    
+  #job title
+  jobTitle <- url %>%
+    html_nodes(".topcard__title") %>%
+    html_text() %>%
+    data.frame(Job_Title = ., stringsAsFactors = F)
+    
+  #company
+  company <- url %>%
+    html_nodes(".topcard__flavor--black-link") %>%
+    html_text() %>%
+    data.frame(Company_Name = ., stringsAsFactors = F)
+    
+  #location
+  location <- url %>%
+    html_nodes(".topcard__flavor.topcard__flavor--bullet") %>%
+    html_text() %>%
+    data.frame(Company_Location = ., stringsAsFactors = F)
+    
+  #number of applicants
+  applicants <- url %>%
+    html_nodes(".num-applicants__caption") %>%
+    html_text() %>%
+    data.frame(Num_Apps = ., stringsAsFactors = F)
+    
+  #description
+  description <- url %>%
+    html_nodes(".description__text") %>%
+    html_text() %>%
+    data.frame(Job_Description = ., stringsAsFactors = F)
+  
+  if(x==1){
+    linkedInJobs <- cbind(jobTitle,company,location,applicants,description)
+  }
+  else{
+    linkedInJobs[x,] <- cbind(jobTitle,company,location,applicants,description)
+  }
+  
+  
+  
+
+}
+
+linkedInJobs
+
+rm(linkedInJobs)
+```
+
