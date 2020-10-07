@@ -31,13 +31,19 @@ Obtain login credentials for database connection.
 ```{r setup_DBcon, echo=TRUE}
 #prompt for input 
 
+password_file<-"C:\\password-files-for-r\\AWS_login.csv"
+
+passwords<-read.csv(password_file)
 # read in login credentials
-df_login <- read.csv("D607_P03_login.csv")   # read in login credentials
+df_login <- passwords   # read in login credentials
 
 vardb_user <- df_login$login_name
 vardb_password <- df_login$login_password
 vardb_schema <- df_login$login_schema
 vardb_host <- df_login$login_host
+
+
+
 
 #cat("Host: ", vardb_host, " Schema=", vardb_schema, " username=", vardb_user, " password=", vardb_password)
 
