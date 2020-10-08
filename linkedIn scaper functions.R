@@ -92,13 +92,17 @@ job_scrape<-function(link_to_job_page){
   applicants <- url %>%
     html_nodes(".num-applicants__caption") %>%
     html_text()
+  #pull salary
+  salary <- url %>%
+    html_node(".topcard__flavor--salary") %>%
+    html_text()
   
   #pull description
   description <- url %>%
     html_nodes(".description__text") %>%
     html_text()
   
-  job_vector<-c(jobTitle,company,location,applicants,description)
+  job_vector<-c(jobTitle,company,location,applicants,salary,description)
   
   return(job_vector)
   
@@ -114,7 +118,7 @@ test_vector<-job_scrape(test[2])
 all_jobs_scrape<-function(job_link_list){
   urls<-job_link_list
   #create data frame to load info into
-  df_jobs<-data.frame("job_title"=character(),"company"=character(),"location"=character(),"applicants"=numeric(),"description"=character())
+  df_jobs<-data.frame("job_title"=character(),"company"=character(),"location"=character(),"applicants"=numeric(),"salary"=character(),"description"=character())
   for(i in 1:length(urls)){
     #fill temporary vector with job info
     temp_job<-job_scrape(urls[i])
@@ -122,7 +126,7 @@ all_jobs_scrape<-function(job_link_list){
     df_jobs<-rbind(df_jobs,temp_job)
   }
   #return data frame with jobs in it
-  colnames(df_jobs)<-c("job_title","company","location","applicants","description")
+  #colnames(df_jobs)<-c("job_title","company","location","applicants","salary","description")
   return(df_jobs)
 }
 
