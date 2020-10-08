@@ -82,31 +82,26 @@ count_word<-word.df%>%
 count_word_cut<-count_word%>%
   filter(word_count>20)
 view(count_word_cut)
-date<-as.character(Sys.Date())
 
-table_title<-paste(c("scrape_for_","date"),collapse='')
+ggplot(count_word_cut, mapping=aes(x=reorder(word,word_count),y=word_count))+
+  geom_bar(stat="identity")+
+  coord_flip() +
+  labs(title="Twitter Scrape for hashtags when #DataScience is Used",x="hashtags", y="count")
 
-argument<-paste("CREATE TABLE `",table_title,"` (
-              `word` varchar (20) NOT NULL,
-              `word_count` int NOT NULL,
-              ",collapse='') 
 
-dbGetQuery(mydb,argument)
 
-dbGetQuery(mydb, "CREATE TABLE `scrape_one` (
+
+
+dbGetQuery(mydb, "CREATE TABLE `scrape_two` (
   `word` varchar(20) NOT NULL,
   `word_count` int NOT NULL,
   PRIMARY KEY (`word`)
 )")
 
-written_df <- dbWriteTable(mydb, "scrape_one", count_word_cut, append=TRUE, row.names=FALSE)
+written_df <- dbWriteTable(mydb, "scrape_two", count_word_cut, append=TRUE, row.names=FALSE)
 
-(loaded_aws_df <- dbGetQuery(mydb, "select * from scrape_one"))
+(loaded_aws_df <- dbGetQuery(mydb, "select * from scrape_two"))
 
-ggplot(count_word_cut, mapping=aes(x=reorder(word,word_count),y=word_count))+
-         geom_bar(stat="identity")+
-         coord_flip() +
-         labs(title="Twitter Scrape for hashtags when #DataScience is Used",x="hashtags", y="count")
 
 # Disconnect from AWS DB
 (dbDisconnect(mydb))
