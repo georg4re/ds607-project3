@@ -1,4 +1,8 @@
 #Linkedin Scrape
+#dont write new code in this script. select all (ctrl+A) and run 
+
+#write your code in a different form 
+
 
 library(rvest)
 library(tidyverse)
@@ -7,7 +11,7 @@ library(tidyverse)
 #base of the link we want to build
 link_base_url<-"https://www.linkedin.com/jobs/search/?geoId=90000070&keywords=data%20science&location=New%20York%20City%20Metropolitan%20Area&start="
 #nmax is the maximum number of pages we want to make
-nmax<-975/25
+#nmax<-975/25
 
 
 #function to build db of page links
@@ -44,7 +48,7 @@ job_links<-function(url){
   return(jobURL)
 }
 #testing job_links()
-job_postings<-job_links(df_link[1,1])
+#job_postings<-job_links(df_link[1,1])
 
 
 #combine iterate pages and pull links from every page into one function
@@ -62,7 +66,7 @@ all_links<-function(link_base_url,max){
 }
 
 #testing all_links()
-test<-all_links(link_base_url,nmax)
+#test<-all_links(link_base_url,nmax)
 
 
 #function for pulling single job info
@@ -102,7 +106,7 @@ job_scrape<-function(link_to_job_page){
     html_nodes(".description__text") %>%
     html_text()
   
-  job_vector<-c(jobTitle,company,location,applicants,salary,description)
+  job_vector<-c(jobTitle,company,location,applicants,salary,description,char_link)
   
   return(job_vector)
   
@@ -110,7 +114,7 @@ job_scrape<-function(link_to_job_page){
 
 
 #testing job_scrape
-test_vector<-job_scrape(test[2])
+#test_vector<-job_scrape(test[2])
 
 
 #function for applying job scrape to all jobs in a list and building a data.frame
@@ -126,12 +130,12 @@ all_jobs_scrape<-function(job_link_list){
     df_jobs<-rbind(df_jobs,temp_job)
   }
   #return data frame with jobs in it
-  #colnames(df_jobs)<-c("job_title","company","location","applicants","salary","description")
+  colnames(df_jobs)<-c("job_title","company","location","applicants","salary","description")
   return(df_jobs)
 }
 
 #test of all_jobs_scrape (not working when I scrape too much)
-test_jobs_data_frame<-all_jobs_scrape(test[1:100])
+#test_jobs_data_frame<-all_jobs_scrape(test[1:100])
 
 #all in one function, full scrape from base url, returns data frame
 #link_base_url is the base url without the appened page number thing
@@ -148,6 +152,6 @@ linkedIn_scrape<-function(link_base_url,max){
 
 
 #test for full linkedIn scraper function
-df_linkedin<-linkedIn_scrape(link_base_url,1)
+#df_linkedin<-linkedIn_scrape(link_base_url,30)
 
 
