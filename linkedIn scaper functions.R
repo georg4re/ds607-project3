@@ -32,19 +32,23 @@ return(list_of_links)
 }
 
 #testing iterate_pages()
-link_list<-iterate_pages(link_base_url,nmax)
+#link_list<-iterate_pages(link_base_url,nmax)
 
 #pull all job links from a single page
-job_links<-function(url){
-  url<-url
-  #load html into variable
-  html<-read_html(url)
-  #pull href for each job on page into a list
-  jobURL <- html %>%
-    html_nodes("div") %>%
-    html_nodes(".result-card__full-card-link") %>%
-    html_attr("href") %>%
-    as.character()
+job_links<-function(job_links_list){
+  job_links_list<-job_links_list
+  jobURL<-list()
+  for (i in 1:length(job_links_list)){
+    html<-read_html(job_links_list[i])
+    temp_urls<-html%>%
+      html_nodes(".result-card__full-card-link") %>%
+      html_attr("href") %>%
+      as.character()
+    jobURL<-append(jobURL,temp_urls)
+    
+  }
+  
+  
   return(jobURL)
 }
 #testing job_links()
@@ -52,19 +56,34 @@ job_links<-function(url){
 
 
 #combine iterate pages and pull links from every page into one function
+#added a check to avoid double counting the same link twice. 
 all_links<-function(link_base_url,max){
-  link_base_url<-link_base_url
+  
+  link_base_url<-base_url
   max<-max
   link_list<-iterate_pages(link_base_url,max)
-  outlist<-list()
-  for(i in 1:length(link_list)){
+  job_link_list<-list()
+  for (i in 1:length(link_list)){
     temp_list<-job_links(link_list[i])
-    outlist<-append(outlist,temp_list)
     
+    #checks each element from each page by detecting 
+    #if the same job title+id is already on our output
+    for(n in 1:length(temp_list)){
+      
+      id<-str_extract(temp_list[n],"(?<=https://www.linkedin.com/jobs/view/)(.)+\\?")
+      link_unique<-str_detect(job_link_list,id)
+      bool<-sum(link_unique)
+      
+      
+      
+      if(bool==0){
+        job_link_list<-append(job_link_list,temp_list[n])
+      }
+    }
   }
-  return(outlist)
+  return(job_link_list)
 }
-
+  
 #testing all_links()
 #test<-all_links(link_base_url,nmax)
 
@@ -122,7 +141,7 @@ job_scrape<-function(link_to_job_page){
 all_jobs_scrape<-function(job_link_list){
   urls<-job_link_list
   #create data frame to load info into
-  df_jobs<-data.frame("job_title"=character(),"company"=character(),"location"=character(),"applicants"=numeric(),"salary"=character(),"description"=character())
+  df_jobs<-data.frame("job_title"=character(),"company"=character(),"location"=character(),"applicants"=numeric(),"salary"=character(),"description"=character(),"href"=character())
   for(i in 1:length(urls)){
     #fill temporary vector with job info
     temp_job<-job_scrape(urls[i])
@@ -130,7 +149,7 @@ all_jobs_scrape<-function(job_link_list){
     df_jobs<-rbind(df_jobs,temp_job)
   }
   #return data frame with jobs in it
-  colnames(df_jobs)<-c("job_title","company","location","applicants","salary","description")
+  colnames(df_jobs)<-c("job_title","company","location","applicants","salary","description","link")
   return(df_jobs)
 }
 
@@ -143,8 +162,8 @@ all_jobs_scrape<-function(job_link_list){
 linkedIn_scrape<-function(link_base_url,max){
   link_base_url<-link_base_url
   max<-max
-  link_list<-all_links(link_base_url=link_base_url,max=max)
-  final_output_df<-all_jobs_scrape(link_list)
+  job_link_list<-all_links(link_base_url=link_base_url,max=max)
+  final_output_df<-all_jobs_scrape(job_link_list)
   return(final_output_df)
   
   
