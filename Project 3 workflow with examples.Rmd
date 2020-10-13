@@ -1,0 +1,210 @@
+---
+title: "Writing scrape data to MySQL on AWS"
+author: "Jack Wright"
+date: "10/13/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Scrape data from linkedin
+
+1. Load functions from "linkedin scraper functions"
+
+```{r}
+#this will run the most current linkedin scrape functions from the github
+source("https://raw.githubusercontent.com/georg4re/ds607-project3/master/linkedIn%20scaper%20functions.R")
+
+```
+
+
+## get your base url (or use the one loaded from github) and set your max pages you want to scrape
+```{r}
+base_url<-link_base_url
+max<-38
+```
+
+
+# Run linkedIn_scrape() to scrape linkedin
+
+```{r}
+ny_scrape<-linkedIn_scrape(base_url,max)
+
+```
+
+## Upload to AWS
+
+AWS Connection
+
+
+```{r setup_2, echo=TRUE}
+library(DBI)
+library(tidyverse)
+```
+
+## Setup MySQL database connection 
+
+Obtain login credentials for database connection.
+
+```{r setup_DBcon, echo=TRUE}
+#prompt for input 
+
+password_file<-"C:\\password-files-for-r\\AWS_login.csv"
+
+passwords<-read.csv(password_file)
+# read in login credentials
+df_login <- passwords   # read in login credentials
+
+vardb_user <- df_login$login_name
+vardb_password <- df_login$login_password
+vardb_schema <- df_login$login_schema
+vardb_host <- df_login$login_host
+
+#cat("Host: ", vardb_host, " Schema=", vardb_schema, " username=", vardb_user, " password=", vardb_password)
+
+
+mydb = dbConnect(RMySQL::MySQL(), user=vardb_user,  password=vardb_password, port=3306, dbname=vardb_schema, host=vardb_host)
+
+```
+
+## getting file encoding correct
+
+There is a problem with the encoding of the "description column" when you try to upload it directly, so you need to export it, then reimport it.
+
+```{r}
+
+write.table(ny_scrape,file="tmp.txt", fileEncoding ="utf8")
+mydata_utf8 <- read.table(file="tmp.txt",encoding="utf8") 
+
+```
+
+
+## upload table to the cloud
+
+```{r}
+
+written_df<-dbWriteTable(mydb,"nyc_data_scrape",
+                         mydata_utf8,append=TRUE,row.names=FALSE)
+
+```
+
+
+## check if table is up, and read it into a data.frame()
+
+```{r}
+
+dbListTables(mydb)
+
+mysql_table<-dbReadTable(mydb,"nyc_data_scrape")
+
+```
+
+
+
+## Text analysis with "quanteda"
+
+## Load
+```{r}
+library(quanteda)
+```
+
+## load data into a "corpus". a data frame specifically set up for text analysis
+
+```{r}
+
+# get the "description" a a list object
+description_vector<-as.vector(mysql_table$description)
+#set names for the list items
+dat<-mysql_table%>%
+  mutate(job_id=paste(job_title,company,row_number(),sep="_"), .before=job_title)
+
+names(description_vector)<-dat$job_id
+#load into corpus
+job_corpus<-corpus(description_vector)
+
+# adding relevant meta-data to the corpus (add salary if we have it)
+docvars(job_corpus,"job_title")<-dat$job_title
+docvars(job_corpus,"company")<-dat$company
+
+
+
+summary(job_corpus, n=5)
+
+```
+
+Plot basic stuff based on a summary output
+```{r}
+tokeninfo<-summary(job_corpus)
+tokeninfo$company<-docvars(job_corpus, "company")
+
+
+
+```
+
+
+# kwic
+
+give context of specific words
+
+```{r}
+
+df_experience<-kwic(job_corpus,pattern="experience", valuetype = "regex")
+view(df_experience)
+
+```
+
+
+
+dfm()
+
+-performs tokenization and tabulates the extracted features into a matrix of documents by features. 
+
+-unlike the conservative approach of tokens(), dfm() applies certain potions by default, like tolower() and removes punctuation. options of tokens() can be passed to dfm()
+
+```{r}
+dfmat_data<-dfm(job_corpus)
+view(dfmat_data)
+
+# dfm with "stopwords and punctiation removed
+
+dfmat_data_2<-dfm(job_corpus,
+      remove = stopwords("english"), 
+      stem = FALSE, remove_punct = TRUE
+                  )
+
+view(dfmat_data_2)
+```
+
+
+
+
+To access the most frequently occuring features, use topfeatures()
+
+
+```{r}
+topfeatures(dfmat_data_2, 10)
+
+textplot_wordcloud(dfmat_data_2, min_count = 20, random_order = FALSE, rotation=.25, color=RColorBrewer::brewer.pal(8,"Dark2"))
+```
+
+
+
+## grouping words by DICTIONARY or equivalence class
+
+
+when we have PRIOR KNOWLEDGE of sets of words that are indicative of traits we would like to measure from the text. 
+
+
+creating a dictionary
+```{r}
+twitter_dict<-dictionary(list(AI=c("AI", "artificial intelligence"),machine_learning=c("machine learning","ml"),iot=c("internet of things","iot"),big_data=c("big data"),python=c("python"),analytics=c("data analytics"),digital_transformation=c("digital transformation"),R=c(" R ","-R"),java=c("javascript","java"),RStats=c("Rstats")))
+
+dfmat_data_dict<-dfm(job_corpus, dictionary=twitter_dict)
+
+topfeatures(dfmat_data_dict)
+
+```
+
