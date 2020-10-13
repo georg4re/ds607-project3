@@ -9,13 +9,14 @@ library(tidyverse)
 
 
 #base of the link we want to build
-link_base_url<-"https://www.linkedin.com/jobs/search/?geoId=90000070&keywords=data%20science&location=New%20York%20City%20Metropolitan%20Area&start="
-#nmax is the maximum number of pages we want to make
-#nmax<-975/25
+base_url<-"https://www.indeed.com/jobs?q=data%20science&l=United%20States&start="
+#linkedin structure goes by 10 results per page
+#max is the pages you want to look at
+max=1000
 
 
 #function to build db of page links
-iterate_pages<-function(link_base_url,max){
+indeed_iterate_pages<-function(base_url,max){
   df_link<-data.frame("link"=character())
   link_base_url<-link_base_url
   max<-max
@@ -23,12 +24,12 @@ iterate_pages<-function(link_base_url,max){
   #loop to create links
   for(i in 1:max){
     n<-(i-1)
-    page<-as.character(n*25)
+    page<-as.character(n*10)
     link<-paste0(link_base_url,page)
     df_link<-rbind(df_link, link)
     list_of_links<-pull(df_link,1)
   }
-return(list_of_links)
+  return(list_of_links)
 }
 
 #testing iterate_pages()
@@ -57,7 +58,7 @@ job_links<-function(job_links_list){
 
 #combine iterate pages and pull links from every page into one function
 #added a check to avoid double counting the same link twice. 
-all_links_unique_check<-function(link_base_url,max){
+all_links<-function(link_base_url,max){
   
   link_base_url<-base_url
   max<-max
@@ -65,6 +66,7 @@ all_links_unique_check<-function(link_base_url,max){
   job_link_list<-list()
   for (i in 1:length(link_list)){
     temp_list<-job_links(link_list[i])
+    
     #checks each element from each page by detecting 
     #if the same job title+id is already on our output
     for(n in 1:length(temp_list)){
@@ -83,26 +85,6 @@ all_links_unique_check<-function(link_base_url,max){
   return(job_link_list)
 }
 
-all_links<-function(link_base_url,max){
-  
-  link_base_url<-base_url
-  max<-max
-  link_list<-iterate_pages(link_base_url,max)
-  job_link_list<-list()
-  for (i in 1:length(link_list)){
-    temp_list<-job_links(link_list[i])
-    #checks each element from each page by detecting 
-    #if the same job title+id is already on our output
-    
-        job_link_list<-append(job_link_list,temp_list)
-      
-    
-  }
-  job_link_list<-job_link_list%>%
-    unlist()
-  return(job_link_list)
-}
-  
 #testing all_links()
 #test<-all_links(link_base_url,nmax)
 
