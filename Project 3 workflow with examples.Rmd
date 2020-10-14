@@ -1,5 +1,5 @@
 ---
-title: "Writing scrape data to MySQL on AWS"
+title: "Full workflow"
 author: "Jack Wright"
 date: "10/13/2020"
 output: html_document
@@ -24,7 +24,7 @@ source("https://raw.githubusercontent.com/georg4re/ds607-project3/master/linkedI
 ## get your base url (or use the one loaded from github) and set your max pages you want to scrape
 ```{r}
 base_url<-link_base_url
-max<-38
+max<-10
 ```
 
 
@@ -72,7 +72,7 @@ mydb = dbConnect(RMySQL::MySQL(), user=vardb_user,  password=vardb_password, por
 
 ## getting file encoding correct
 
-There is a problem with the encoding of the "description column" when you try to upload it directly, so you need to export it, then reimport it.
+There is a problem with the encoding of the "description column" when you try to upload it directly, so you need to export it, then re-import it.
 
 ```{r}
 
@@ -116,7 +116,7 @@ library(quanteda)
 ```{r}
 
 # get the "description" a a list object
-description_vector<-as.vector(mysql_table$description)
+description_vector<-as.vector(mysql_table$description)#plus barani description column
 #set names for the list items
 dat<-mysql_table%>%
   mutate(job_id=paste(job_title,company,row_number(),sep="_"), .before=job_title)
@@ -151,7 +151,7 @@ give context of specific words
 
 ```{r}
 
-df_experience<-kwic(job_corpus,pattern="experience", valuetype = "regex")
+df_experience<-kwic(job_corpus,pattern="years", valuetype = "regex")
 view(df_experience)
 
 ```
@@ -205,6 +205,5 @@ twitter_dict<-dictionary(list(AI=c("AI", "artificial intelligence"),machine_lear
 dfmat_data_dict<-dfm(job_corpus, dictionary=twitter_dict)
 
 topfeatures(dfmat_data_dict)
-
 ```
 
