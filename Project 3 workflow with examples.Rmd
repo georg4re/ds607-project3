@@ -20,6 +20,17 @@ source("https://raw.githubusercontent.com/georg4re/ds607-project3/master/linkedI
 
 ```
 
+## Login to linkedIn through rvest
+
+#Address of the login webpage
+login<-"https://www.linkedin.com/login?fromSignIn=true&trk=guest_homepage-basic_nav-header-signin"
+
+#create a web session with the desired login address
+pgsession<-html_session(login)
+pgform<-html_form(pgsession)[[1]]  #in this case the submit is the 2nd form
+filled_form<-set_values(pgform, session_key="jwrightzz1234@gmail.com", session_password="Jack446550")
+submit_form(pgsession, filled_form)
+
 
 ## get your base url (or use the one loaded from github) and set your max pages you want to scrape
 ```{r}
@@ -29,6 +40,8 @@ max<-10
 
 
 # Run linkedIn_scrape() to scrape linkedin
+
+linkedin_scrape() is a function we made that iterates through the 40 job search pages, scrapes the links to the job posts. loads each job post and scrapes the relevant information.
 
 ```{r}
 ny_scrape<-linkedIn_scrape(base_url,max)
