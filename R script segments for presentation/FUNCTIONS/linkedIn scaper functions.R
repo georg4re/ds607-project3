@@ -187,6 +187,15 @@ linkedIn_scrape<-function(link_base_url,max){
   
   
 }
+linkedIn_scrape_unique<-function(link_base_url,max){
+  link_base_url<-link_base_url
+  max<-max
+  job_link_list<-all_links_unique_check(link_base_url=link_base_url,max=max)
+  final_output_df<-all_jobs_scrape(job_link_list)
+  return(final_output_df)
+  
+  
+}
 
 
 #test for full linkedIn scraper function
