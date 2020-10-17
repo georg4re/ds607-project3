@@ -135,7 +135,7 @@ df_final = read.csv("data/df_final.csv")
 knitr::kable(head(count_word))
 ```
 
-We then transformed this dataset, which at this point consisted of **10,132** observations and prepared the most common ones to be examined by a plot:
+We then transformed this dataset, which at this point consisted of **10,132** observations.  For the Null Scrape vs Data Science Scrape, we used the term count difference between the two datasets and prepared the most common ones to be examined by a plot.:
 
 ```{r echo=FALSE}
 gg_output <- read.csv("data/gg_output.csv")
@@ -311,7 +311,7 @@ my_graph <- wordcloud2(data = job_bigrams_count2, size = 1, minRotation = -pi/6,
 saveWidget(my_graph,"linkedin_graph.html",selfcontained = F)
 ```
 
-## Glassdoor
+## Amazon
 So far, we have analyzed a sample data set from LinkedIn and Twitter to understand the trends in 'Data Science'. Now, let's take a large dataset containing all the jobs related to 'Data Science' to validate our hypothesis. For this purpose, we need to select a company which is one of the largest hiring company for data science related roles and also is a reputable company that has positive reviews in the job market. 
 
 One of the largest job portals company, [glassdoor.com](https://www.glassdoor.com/blog/companies-hiring-data-scientists/) shows **'Amazon'** as the best candidate for this purpose. 
@@ -603,7 +603,7 @@ ggplot(aes( x=Keywords,y=skills_pct)) +
     xlab("")+ ylab("")+
   theme( axis.line = element_line(colour = "black", 
                       size = 1, linetype = "solid"))+
-   ggtitle("Top Technical Skills for 'Data Science' at Amazon") + 
+   ggtitle("Top Skills (Soft & Tech) for 'Data Science' at Amazon") + 
      theme(plot.title = element_text(lineheight=.8, face="bold"))
 
 ```
@@ -672,3 +672,43 @@ getDbConnection <- function() {
 }
 ```
 
+### LinkedIn Scraper 
+```{r eval=FALSE}
+# function: linkedIn_scrape
+# returns data frame
+# link_base_url: is the base url without the appened page number thing
+# max: is the maximum number of pages you want to scrape
+# all_links: gets all job links 
+# all_jobs_scrape: iterates thru all job links and scrapes jobs
+
+linkedIn_scrape<-function(link_base_url,max){
+  link_base_url<-link_base_url
+  max<-max
+  job_link_list<-all_links(link_base_url=link_base_url,max=max)
+  final_output_df<-all_jobs_scrape(job_link_list)
+  return(final_output_df)
+}
+
+linkedIn_scrape_unique<-function(link_base_url,max){
+  link_base_url<-link_base_url
+  max<-max
+  job_link_list<-all_links_unique_check(link_base_url=link_base_url,max=max)
+  final_output_df<-all_jobs_scrape(job_link_list)
+  return(final_output_df)
+}
+
+```
+
+## Credits
+
+- Bharani Nittala
+
+- Richard Sughrue
+
+- LeTicia Cancel
+
+- George Cruz Deschamps
+
+- Jack Wright
+
+...
