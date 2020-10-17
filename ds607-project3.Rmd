@@ -213,7 +213,7 @@ for (x in 1:length(jobURL)) {
 }
 
 #Dataframe of collected job posting information
-knitr::kable(head(linkedInJobs2))
+knitr::kable(head(linkedInJobs2%>%select(-Job_Description)))
 ```
 
 #### Tidy the data
@@ -222,7 +222,7 @@ The job descriptions need to be tidied so we can analyze what companies are look
 
 Further tidying is performed by analizing combinations of two words "bigrams", separate the bigrams, remove stopwords, perform a count and unite both words into a single column. 
 
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, echo=FALSE}
 #get total count of single words from job descriptions and remove stop words
 job_words <- linkedInJobs2 %>%
   unnest_tokens(word,Job_Description) %>%
@@ -263,7 +263,7 @@ knitr::kable(head(job_bigrams_count))
 #### Analysis
 
 The bar plots below look at the frequency of words in all the job descriptions. The words data, science, and scientist were excluded from this analysis since those are the words used in the job descriptions and it will skew that data. Other words such as years, and work were also removed. The first chart looks at the top 20 single words. It is easy to point out which words are frequently used, but it does not really give us much information besides frequency.
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, echo=FALSE}
 #plot of top 20 single words
 job_words %>%
   group_by(word) %>%
@@ -279,7 +279,7 @@ job_words %>%
 
 The bigram gives us more information on what employers are looking for and it looks like most frequently used bigrams are hard skills. Machine learning is the top skill out of all skills and happens to be a hard skill. The top soft skill in communication. 
 
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, echo=FALSE}
 #plot of top 20 bigrams
 job_bigrams_count %>%
   group_by(bigram) %>%
@@ -297,7 +297,7 @@ job_bigrams_count %>%
 
 We used a wordcloud to create a visualization of the top 50 words used in LinkedIn job descriptions for Data Scientist jobs. Computer Science is important to employers along with communication skills, data visualization, and predictive models.  
 
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, echo=FALSE}
 #Dataframe of top 50 bigrams
 job_bigrams_count2 <- job_bigrams_united %>% count(bigram) %>% filter(!bigram %in% c("data scientist","data science","cvs health","veteran status","sexual orientation","gender identity","york city","national origin","equal opportunity","opportunity employer","employment opportunity")) %>% top_n(50)
 
@@ -324,12 +324,8 @@ The search on [Amazon.jobs](https://www.amazon.jobs/en/search?base_query=Data+Sc
 
 ### Tidying data for Analysis
 
-##### Load required libraries such as Tidyverse, Tidytext, Quanteda and Corpus 
-```{r warning=FALSE, message=FALSE}
-mydb <- getDbConnection()
-
-knitr::opts_chunk$set(eval = TRUE, results = FALSE)
-amzn_jobs_raw<-dbReadTable(mydb,"amazon_table")
+```{r echo=FALSE}
+amzn_jobs_raw<-read.csv("data/amazon_jobs.csv")
 
 ```
 
@@ -339,9 +335,14 @@ Select only the required columns to perform the analysis. Both 'Basic Qualificat
 
 Data reveals that **'Software Development'** department offers the most data science jobs at Amazon! Let's look into the table a bit. In total, the top three job categories such as **Software Development**, **Product Management (technical+non-technical)** and **Finance & Accounting** contribute to **63%** of the data science jobs.   
 
-```{r subset, results = "asis"}
+```{r subset, results = "asis", echo=FALSE}
 
-amzn_jobs_latest <- amzn_jobs_raw %>% select(Job.URL,Basic.Qualifications,Job.category,Posted.date,Preferred.Qualifications)%>%
+amzn_jobs_latest <- amzn_jobs_raw %>% 
+  select(Job.URL,
+         Basic.Qualifications,
+         Job.category,
+         Posted.date,
+         Preferred.Qualifications)%>%
   filter(str_sub(amzn_jobs_raw$Posted.date,-4,-1) == "2020")
 
 jobs_cnt <- amzn_jobs_latest %>% count(Job.category,sort = TRUE)
@@ -364,7 +365,8 @@ ggplot( aes(y=Job.category, x=jobs_pct)) +
 
 
 On closer look, 'Perferred Qualifications' seen to have more information about the job than 'Basic Qualifications'. And next, removing legal and PR content from the column to perform text analysis
-```{r remove_legal }
+
+```{r remove_legal, echo=FALSE }
 amzn_jobs_latest$Preferred.Qualifications <- sub('Amazon is committed.*$', '', amzn_jobs_latest$Preferred.Qualifications)
 amzn_jobs_latest$Preferred.Qualifications <- sub('race.*$', '', amzn_jobs_latest$Preferred.Qualifications)
 amzn_jobs_latest$Preferred.Qualifications <- sub('equal opportunity.*$', '', amzn_jobs_latest$Preferred.Qualifications)
@@ -374,7 +376,7 @@ amzn_jobs_latest$Preferred.Qualifications <- sub('equal opportunity.*$', '', amz
 
 #### One Word Frequency count
 
-```{r ,results= "asis",warning=FALSE, message=FALSE}
+```{r ,results= "asis",warning=FALSE, message=FALSE, echo=FALSE}
 
 ngram_list <- c('br', 'race', 'national origin', 'gender', 'identity', 'sexual','orientation', 'protected', 'veteran', 'status', 'disability', 'age', 'protected status','â', 'equal','opportunity','amazon','employer','https','en','legally','discriminate','workplace','national','amazonâ')
 
@@ -415,7 +417,7 @@ ggplot(aes( x=Keywords,y=one_pct)) +
 
 #### Two Words Frequency count
 
-```{r ,results= "asis",warning=FALSE, message=FALSE}
+```{r ,results= "asis",warning=FALSE, message=FALSE, echo=FALSE}
 
 Pref_freq_bi <- amzn_jobs_latest %>%
   unnest_tokens(bigram, `Preferred.Qualifications`,token = "ngrams", n = 2) %>%
@@ -464,7 +466,7 @@ ggplot(aes( x=Keywords,y=one_pct)) +
 
 #### Three Words Frequency count
 
-```{r,results= "asis",warning=FALSE, message=FALSE}
+```{r,results= "asis",warning=FALSE, message=FALSE, echo=FALSE}
 
 Pref_freq_tri <- amzn_jobs_latest %>%
   unnest_tokens(trigram, `Preferred.Qualifications`,token = "ngrams", n = 3) %>%
@@ -520,7 +522,7 @@ ggplot(aes( x=Keywords,y=one_pct)) +
 
 #### Creating dictionaries based on the observed "One Word", "Two Words" and "Three Words" frequency counts. These trends are used to create two different sets of skills - **Technical skills** and **Soft skills**. Thus, we can conclude that statistics is both science and art!
 
-```{r,results= "asis" }
+```{r,results= "asis" , echo=FALSE}
 soft_skills <- dictionary(list(Professional_Experience = c('demonstrated ability','track record','proven ability','experience building','professional'),Leadership = c('leadership principles','	affirmative action','fast paced','lead','leadership','guide'),Communication = c('written communication','communication skills','verbal'), Management = c('management','mba'), Business_Knowledge = c('Business'), Commitment = c('committed','commitment'), Deep_dive = c('deep dive','investigate','dive'), Learning = c('learning','learner','curious','inquisitive'), Creativity = c('creative','design','visual'), Problem_Solver = c('solver','puzzle','problem','framework','complex','thinker'),Confidence = c('confidence','believe')))
 
 technical_skills <- dictionary(list(General_Coding = c('code','coding standards','source control','programming'),Software_Development = c('software development','software engineering'),Subject_Matter_Expert = c('subject matter'),Computer_Science = c('computer science'), Python = c('Python','python'), Database = c('database','Teradata'),SQL = 'SQL',R = 'R',Statistics = c('statistics', 'stats'),C_Family =c('C','C++','C#'),Java = 'Java',Perl = 'Perl', Scala = 'Scala',Machine_Learning = c('machine learning','deep learning','Tensorflow'),AI = c('ai','artificial intelligence','iot','AI'),Julia = 'Julia',Matlab  = 'Matlab',Big_Data = c('big data','Apache Spark','Azure','Apache Hive','Hadoop'),Other_Statiscal_tools = c('SAS', 'minitab','SPSS','prism'),Tableau= c('Tableau','power bi'),Business_Intelligence = c('BI','bi','business intelligence')))
@@ -532,7 +534,7 @@ R_python_Matlab_other <- dictionary(list(R = 'R',Python = c('Python','python'),M
 
 
 #### The most important **Soft skills** are: 
-```{r,results= "asis"}
+```{r,results= "asis", echo=FALSE}
 
 data_dict<-dfm(amzn_jobs_latest$Preferred.Qualifications, dictionary=soft_skills)
 top_soft <- as.data.frame(topfeatures(data_dict))
@@ -557,7 +559,7 @@ ggplot(aes( x=Keywords,y=skills_pct)) +
 
 
 #### The most important **Technical skills** are:
-```{r,results= "asis"}
+```{r,results= "asis", echo=FALSE}
 
 data_dict2<-dfm(amzn_jobs_latest$Preferred.Qualifications, dictionary=technical_skills)
 top_tech <- as.data.frame(topfeatures(data_dict2))
@@ -583,7 +585,7 @@ ggplot(aes( x=Keywords,y=skills_pct)) +
 
 Now, let's combine both soft skills and technical skills and find the top Data Science skills at **Amazon**. We find that **8 out of top 10** skills required at Amazon are **Soft Skills**. So, when you prepare for an interview at Amazon next time, be sure to focus on highlighting your **"Soft Skills"** 
 
-```{r,results= "asis"}
+```{r,results= "asis", echo=FALSE}
 
 data_dict4<-dfm(amzn_jobs_latest$Preferred.Qualifications, dictionary=all_skills)
 top_skill <- as.data.frame(topfeatures(data_dict4))
@@ -612,7 +614,7 @@ knitr::include_graphics("https://www.women-in-technology.com/hs-fs/hubfs/Soft-sk
 
 #### Bonus: Let's find the most popular statistical tool among **Python**, **R**, **Matlab** and others at **Amazon**
 
-```{r,results= "asis"}
+```{r,results= "asis", echo=FALSE}
 
 data_dict3<-dfm(amzn_jobs_latest$Preferred.Qualifications, dictionary=R_python_Matlab_other)
 top_stats <- as.data.frame(topfeatures(data_dict3))
