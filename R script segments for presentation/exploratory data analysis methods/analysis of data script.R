@@ -42,3 +42,4 @@ topfeatures(dfmat_data_dict)
 textplot_wordcloud(dfmat_data_dict, min_count = 1, random_order = FALSE, rotation=.25, color=RColorBrewer::brewer.pal(8,"Dark2"))
 
 #NEED A VISUALIZATION OF THE DIFFERENCE BETWEEN TWITTER AND JOB SCRAPE
+

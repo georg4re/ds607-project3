@@ -2,7 +2,12 @@
 title: "Project 3"
 author: "Bar Raisers - Large Group Justified"
 date: "10/16/2020"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    df_print: paged
 code_folding: hide
 ---
 
@@ -14,6 +19,22 @@ Our group embarked on the quest to find an answer to the title question. Our app
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(ggplot2)
+library(xml2)
+library(rvest)
+library(tidytext)
+library(janeaustenr)
+library(igraph)
+library(stringr)
+library(tidyr)
+library(wordcloud2)
+library(htmlwidgets) #package to export wordcloud image
+library(webshot) #package to export wordcloud image as png or pdf
+library(tidyverse)
+library(tidytext)
+library(quanteda)
+library(corpus)
+library(scales)
+library(DBI)
 ```
 
 ## Twitter 
@@ -42,6 +63,8 @@ count_word<-word.df%>%
 knitr::kable(head(count_word))
 ```
 
+### Visualizing Common words 
+
 ```{r}
 count_word_cut<-count_word%>%
   filter(word_count>20)
@@ -53,6 +76,8 @@ ggplot(count_word_cut, mapping=aes(x=reorder(word,word_count),y=word_count))+
 
 ```
 
+
+### What we learned from Twitter
 As we can see in this plot, the terms most people associate with Data Science are: 
 - AI, Big Data, Machine Learning and Analytics
 
@@ -68,15 +93,546 @@ Started in 2003, LinkedIn began as a social network for professionals and has ev
 
 Being able to query the job listings in LinkedIn would be an invaluable resource in answering the proposed question.  Scraping data from LinkedIn used to be easier a few years ago but LinkedIn has implemented some security measures to ensure its members data is kept safe.  At the same time, they have made scraping job postings harder. Nevertheless, scrape we shall.
 
+### Getting LinkedIn Data
+
+To get the data from linkedin, we wrote a set of linkedin scraper functions using rvest.  You can find these functions within the `functions` folder:
 
 ```{r eval=FALSE}
+# Function:       linkedIn_scrape
+# returns:        data frame
+# link_base_url:  is the base url without the appended page number thing
+# max:            is the maximum number of pages you want to scrape
+# all_links:      returns all the links found 
+# all_links_unique: ensures the job links are unique
+# all_jobs_scrape:iterates thru the links and scrapes the data
+
+linkedIn_scrape<-function(link_base_url,max){
+  link_base_url<-link_base_url
+  max<-max
+  job_link_list<-all_links(link_base_url=link_base_url,max=max)
+  final_output_df<-all_jobs_scrape(job_link_list)
+  return(final_output_df)
+}
+
+linkedIn_scrape_unique<-function(link_base_url,max){
+  link_base_url<-link_base_url
+  max<-max
+  job_link_list<-all_links_unique_check(link_base_url=link_base_url,max=max)
+  final_output_df<-all_jobs_scrape(job_link_list)
+  return(final_output_df)
+}
 
 
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+### Null Scrape vs Data Science Scrape
+
+For this analysis, we scraped the data to 250 job postings in Linkedin, by examining their description, we looked for the most common used words in the job posting.  We also wanted to compare these results to what we will get if we did not search specifically for the keyword "Data Science".
+
+```{r echo=FALSE}
+df_final = read.csv("data/df_final.csv")
+knitr::kable(head(count_word))
+```
+
+We then transformed this dataset, which at this point consisted of **10,132** observations and prepared the most common ones to be examined by a plot:
+
+```{r echo=FALSE}
+gg_output <- read.csv("data/gg_output.csv")
+
+ggplot(gg_output, aes(x=reorder(word,delta), delta))+
+  geom_bar(stat="identity")+
+  coord_flip()+
+  labs(title="Largest difference in count between a null scrape and a scrape for 'data science'")+
+  ylab("words")+
+  xlab("total difference")
+```
+
+Looking at this graph, we see words that we did not see in our twitter search: 
+
+-**experience and people** appear to be pointing to Soft Skills as opposed to technical skills. 
+-**Analytics, Machine Learning and Statisics** also appear to be valued more than specific frameworks or packages. 
+-**Python** once again appears to be the top language, in this case, followed by SQL. 
 
 
+### Geo Focused LinkedIn Analysis (Data Scientists positions in Brooklyn, NYC)
+
+```{r echo=FALSE}
+#URL for Data Scientist jobs in Brooklyn NY
+url <- "https://www.linkedin.com/jobs/search?keywords=data%20scientist&location=Brooklyn%2C%20New%20York%2C%20United%20States&geoId=&trk=homepage-jobseeker_jobs-search-bar_search-submit&redirect=false&position=1&pageNum=0"
+linkedIn <- read_html(url)
+
+#unique url for each job
+jobURL <- linkedIn %>%
+  html_nodes("div") %>%
+  html_nodes(".result-card__full-card-link") %>%
+  html_attr("href") %>%
+  as.character()
+
+#loop to pull job posting information from each unique url
+for (x in 1:length(jobURL)) {
+  url <- read_html(jobURL[x])
+    
+  #job title
+  jobTitle <- url %>%
+    html_nodes(".topcard__title") %>%
+    html_text() %>%
+    data.frame(Job_Title = ., stringsAsFactors = F)
+    
+  #company
+  company <- url %>%
+    html_nodes(".topcard__flavor--black-link") %>%
+    html_text() %>%
+    data.frame(Company_Name = ., stringsAsFactors = F)
+    
+  #location
+  location <- url %>%
+    html_nodes(".topcard__flavor.topcard__flavor--bullet") %>%
+    html_text() %>%
+    data.frame(Company_Location = ., stringsAsFactors = F)
+    
+  #number of applicants
+  applicants <- url %>%
+    html_nodes(".num-applicants__caption") %>%
+    html_text() %>%
+    data.frame(Num_Apps = ., stringsAsFactors = F)
+    
+  #description
+  description <- url %>%
+    html_nodes(".description__text") %>%
+    html_text() %>%
+    data.frame(Job_Description = ., stringsAsFactors = F)
+  
+  if(x==1){
+    linkedInJobs2 <- cbind(jobTitle,company,location,applicants,description)
+  }
+  else{
+    combine_rows <- cbind(jobTitle,company,location,applicants,description)
+    linkedInJobs2 <- rbind(linkedInJobs2,combine_rows)
+  }
+}
+
+#Dataframe of collected job posting information
+knitr::kable(head(linkedInJobs2))
+```
+
+#### Tidy the data
+
+The job descriptions need to be tidied so we can analyze what companies are looking for in a data scientist. Tidying will include extracting and counting individual words, removing stop words such as “the”, “a”, and “and”. 
+
+Further tidying is performed by analizing combinations of two words "bigrams", separate the bigrams, remove stopwords, perform a count and unite both words into a single column. 
+
+```{r message=FALSE, warning=FALSE}
+#get total count of single words from job descriptions and remove stop words
+job_words <- linkedInJobs2 %>%
+  unnest_tokens(word,Job_Description) %>%
+  anti_join(get_stopwords()) %>%
+  count(Job_Title, word, sort = TRUE)
+
+#head(job_words)
+#get count of bigrams, words that appear together
+job_bigrams <- linkedInJobs2 %>%
+  unnest_tokens(bigram, Job_Description, token = "ngrams", n = 2)
+
+#head(job_bigrams)
+
+#separate the bigram for further tidying
+job_bigrams_sep <- job_bigrams %>%
+  separate(bigram,c("word1","word2", sep = " "))
+
+#head(job_bigrams_sep)
+
+#remove stopwords from separated bigram
+job_bigrams_filt <- job_bigrams_sep %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) 
+
+#head(job_bigrams_filt)
+
+#do a count of remaining words and unite both words into a single column
+job_bigrams_united <- job_bigrams_filt %>%
+  unite(bigram, word1, word2, sep = " ")
+
+job_bigrams_count <- job_bigrams_united %>%
+  count(Job_Title, bigram)
+
+knitr::kable(head(job_bigrams_count))
+```
+
+
+#### Analysis
+
+The bar plots below look at the frequency of words in all the job descriptions. The words data, science, and scientist were excluded from this analysis since those are the words used in the job descriptions and it will skew that data. Other words such as years, and work were also removed. The first chart looks at the top 20 single words. It is easy to point out which words are frequently used, but it does not really give us much information besides frequency.
+```{r message=FALSE, warning=FALSE}
+#plot of top 20 single words
+job_words %>%
+  group_by(word) %>%
+  filter(!word %in% c("data","scientist","science","experience","new","work","years","working","less","help","skills","ability","using","health")) %>%
+  summarise(total = sum(n), sort = TRUE) %>%
+  arrange(desc(total)) %>%
+  mutate(word = factor(word, levels = rev(unique(word)))) %>%
+  top_n(20, total) %>%
+  ggplot(aes(word, total)) +
+  geom_col() + 
+  coord_flip()
+```
+
+The bigram gives us more information on what employers are looking for and it looks like most frequently used bigrams are hard skills. Machine learning is the top skill out of all skills and happens to be a hard skill. The top soft skill in communication. 
+
+```{r message=FALSE, warning=FALSE}
+#plot of top 20 bigrams
+job_bigrams_count %>%
+  group_by(bigram) %>%
+  filter(!bigram %in% c("data scientist","data science","cvs health","veteran status","sexual orientation","gender identity","york city","national origin")) %>%
+  summarise(total = sum(n), sort = TRUE) %>%
+  arrange(desc(total)) %>%
+  mutate(bigram = factor(bigram, levels = rev(unique(bigram)))) %>%
+  top_n(20, total) %>%
+  ggplot(aes(bigram, total,)) +
+  geom_col() + 
+  coord_flip()
+```
+
+#### Visualization 
+
+We used a wordcloud to create a visualization of the top 50 words used in LinkedIn job descriptions for Data Scientist jobs. Computer Science is important to employers along with communication skills, data visualization, and predictive models.  
+
+```{r message=FALSE, warning=FALSE}
+#Dataframe of top 50 bigrams
+job_bigrams_count2 <- job_bigrams_united %>% count(bigram) %>% filter(!bigram %in% c("data scientist","data science","cvs health","veteran status","sexual orientation","gender identity","york city","national origin","equal opportunity","opportunity employer","employment opportunity")) %>% top_n(50)
+
+#wordcloud of top 50 words
+wordcloud2(data = job_bigrams_count2, size = 1, minRotation = -pi/5, maxRotation = -pi/5, rotateRatio = 1)
+
+#Save wordcloud so it can be exported
+my_graph <- wordcloud2(data = job_bigrams_count2, size = 1, minRotation = -pi/6, maxRotation = -pi/6, rotateRatio = 1)
+
+#wordcloud image saved to html file
+saveWidget(my_graph,"linkedin_graph.html",selfcontained = F)
+```
+
+## Glassdoor
+So far, we have analyzed a sample data set from LinkedIn and Twitter to understand the trends in 'Data Science'. Now, let's take a large dataset containing all the jobs related to 'Data Science' to validate our hypothesis. For this purpose, we need to select a company which is one of the largest hiring company for data science related roles and also is a reputable company that has positive reviews in the job market. 
+
+One of the largest job portals company, [glassdoor.com](https://www.glassdoor.com/blog/companies-hiring-data-scientists/) shows **'Amazon'** as the best candidate for this purpose. 
+
+```{r Amazon, results="asis", echo =FALSE}
+knitr::include_graphics("https://retail-today.com/wp-content/uploads/2020/09/Amazon.jpg")
+```
+
+The search on [Amazon.jobs](https://www.amazon.jobs/en/search?base_query=Data+Science&loc_query=United+States&type=area&latitude=38.89037&longitude=-77.03196&country=USA) for keyword "Data Science" in the location "United States" revealed 6630 results. This data is scraped from the website using python query and using a proxy website 'Crawlera'. 
+
+### Tidying data for Analysis
+
+##### Load required libraries such as Tidyverse, Tidytext, Quanteda and Corpus 
+```{r warning=FALSE, message=FALSE}
+mydb <- getDbConnection()
+
+knitr::opts_chunk$set(eval = TRUE, results = FALSE)
+amzn_jobs_raw<-dbReadTable(mydb,"amazon_table")
+
+```
+
+
+Select only the required columns to perform the analysis. Both 'Basic Qualifications' and 'Preferred Qualifications' appear to be key columns(apart from job category), let's select them both and subset the data to the year **2020** alone. 
+
+
+Data reveals that **'Software Development'** department offers the most data science jobs at Amazon! Let's look into the table a bit. In total, the top three job categories such as **Software Development**, **Product Management (technical+non-technical)** and **Finance & Accounting** contribute to **63%** of the data science jobs.   
+
+```{r subset, results = "asis"}
+
+amzn_jobs_latest <- amzn_jobs_raw %>% select(Job.URL,Basic.Qualifications,Job.category,Posted.date,Preferred.Qualifications)%>%
+  filter(str_sub(amzn_jobs_raw$Posted.date,-4,-1) == "2020")
+
+jobs_cnt <- amzn_jobs_latest %>% count(Job.category,sort = TRUE)
+jobs_cnt = mutate(jobs_cnt, jobs_pct = round((n / sum(n))*100))
+
+knitr:: kable(head(jobs_cnt,10)) 
+
+head(jobs_cnt,5) %>% arrange(jobs_pct) %>%  mutate(Job.category = fct_reorder(Job.category, jobs_pct)) %>%
+ggplot( aes(y=Job.category, x=jobs_pct)) + 
+    geom_bar( stat="identity",color="black")+
+    geom_text(aes(label=paste0(jobs_pct,"%")),color = "orange",hjust=1,vjust=0.3)+
+  xlab("Percentage of Jobs")+ ylab("")+
+  theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+   ggtitle("'Data Science' Jobs by Job Category") + 
+     theme(plot.title = element_text(lineheight=.8, face="bold"))
+
+
+```
+
+
+On closer look, 'Perferred Qualifications' seen to have more information about the job than 'Basic Qualifications'. And next, removing legal and PR content from the column to perform text analysis
+```{r remove_legal }
+amzn_jobs_latest$Preferred.Qualifications <- sub('Amazon is committed.*$', '', amzn_jobs_latest$Preferred.Qualifications)
+amzn_jobs_latest$Preferred.Qualifications <- sub('race.*$', '', amzn_jobs_latest$Preferred.Qualifications)
+amzn_jobs_latest$Preferred.Qualifications <- sub('equal opportunity.*$', '', amzn_jobs_latest$Preferred.Qualifications)
+```
+
+### Exploratory data analysis
+
+#### One Word Frequency count
+
+```{r ,results= "asis",warning=FALSE, message=FALSE}
+
+ngram_list <- c('br', 'race', 'national origin', 'gender', 'identity', 'sexual','orientation', 'protected', 'veteran', 'status', 'disability', 'age', 'protected status','â', 'equal','opportunity','amazon','employer','https','en','legally','discriminate','workplace','national','amazonâ')
+
+Pref_freq <- amzn_jobs_latest %>%
+  unnest_tokens(word, `Preferred.Qualifications`) %>%
+  anti_join(stop_words) %>%  
+  filter(
+    !str_detect(word, pattern = "[[:digit:]]"), # removes any words with numeric digits
+    !str_detect(word, pattern = "[[:punct:]]"), # removes any remaining punctuations
+    !str_detect(word, pattern = "(.)\\1{2,}"),  # removes any words with 3 or more repeated letters
+    !str_detect(word, pattern = "\\b(.)\\b"),    # removes any remaining single letter words
+    !word %in% ngram_list                 # remove stopwords from both words in bi-gram
+    ) %>%
+  count(word) %>%
+  filter(n >= 1000) %>% # filter for words used 1000 or more times
+  spread(word, n) %>%                 # convert to wide format
+  map_df(replace_na, 0)                 # replace NAs with 0
+
+Pref_freq_tall <-  as.data.frame(t(Pref_freq))
+Pref_freq_tall  <- tibble::rownames_to_column(Pref_freq_tall, "Keywords")
+Pref_freq_tall <- Pref_freq_tall[order(-Pref_freq_tall$V1),]
+Pref_freq_tall = mutate(Pref_freq_tall, one_pct = round((V1 / sum(V1))*100))
+#knitr:: kable(head(Pref_freq_tall,10)) 
+head(Pref_freq_tall,10) %>% arrange(one_pct) %>%  mutate(Keywords = fct_reorder(Keywords, one_pct)) %>%
+ggplot(aes( x=Keywords,y=one_pct)) + 
+    geom_bar( stat="identity",color="black")+
+    geom_text(aes(label=paste0(one_pct,"%")),color = "orange",hjust=1,vjust=0.3)+
+  theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+  coord_flip()+
+    xlab("")+ ylab("Percentage of Frequency")+
+  theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+   ggtitle("Percentage of One Word Frequencies") + 
+     theme(plot.title = element_text(lineheight=.8, face="bold"))
+
+```
+
+#### Two Words Frequency count
+
+```{r ,results= "asis",warning=FALSE, message=FALSE}
+
+Pref_freq_bi <- amzn_jobs_latest %>%
+  unnest_tokens(bigram, `Preferred.Qualifications`,token = "ngrams", n = 2) %>%
+  separate(bigram, c("word1", "word2"), sep = " ") %>%  
+  filter(
+    !word1 %in% stop_words$word,                 # remove stopwords from both words in bi-gram
+    !word2 %in% stop_words$word,
+    !str_detect(word1, pattern = "[[:digit:]]"), # removes any words with numeric digits
+    !str_detect(word2, pattern = "[[:digit:]]"),
+    !str_detect(word1, pattern = "[[:punct:]]"), # removes any remaining punctuations
+    !str_detect(word2, pattern = "[[:punct:]]"),
+    !str_detect(word1, pattern = "(.)\\1{2,}"),  # removes any words with 3 or more repeated letters
+    !str_detect(word2, pattern = "(.)\\1{2,}"),
+    !str_detect(word1, pattern = "\\b(.)\\b"),   # removes any remaining single letter words
+    !str_detect(word2, pattern = "\\b(.)\\b"),
+    !word1 %in% ngram_list,                 # remove stopwords from both words in bi-gram
+    !word2 %in% ngram_list
+    ) %>%
+  unite("bigram", c(word1, word2), sep = " ") %>%
+  count(bigram) %>%
+  filter(n >= 800) %>% # filter for bi-grams used 1000 or more times
+  spread(bigram, n) %>%                 # convert to wide format
+  map_df(replace_na, 0)                 # replace NAs with 0
+
+Pref_freq_bi_tall <- as.data.frame(t(Pref_freq_bi))
+Pref_freq_bi_tall  <- tibble::rownames_to_column(Pref_freq_bi_tall, "Keywords")
+Pref_freq_bi_tall <- Pref_freq_bi_tall[order(-Pref_freq_bi_tall$V1),]
+#knitr:: kable(head(Pref_freq_bi_tall,10))
+Pref_freq_bi_tall = mutate(Pref_freq_bi_tall, one_pct = round((V1 / sum(V1))*100))
+
+
+head(Pref_freq_bi_tall,10) %>% arrange(one_pct) %>%  mutate(Keywords = fct_reorder(Keywords, one_pct)) %>%
+ggplot(aes( x=Keywords,y=one_pct)) + 
+    geom_bar( stat="identity",color="black")+
+    geom_text(aes(label=paste0(one_pct,"%")),color = "orange",hjust=1,vjust=0.3)+
+  theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+  coord_flip()+
+    xlab("")+ ylab("Percentage of Frequency")+
+  theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+   ggtitle("Percentage of Two Words Frequencies") + 
+     theme(plot.title = element_text(lineheight=.8, face="bold"))
+```
+
+
+#### Three Words Frequency count
+
+```{r,results= "asis",warning=FALSE, message=FALSE}
+
+Pref_freq_tri <- amzn_jobs_latest %>%
+  unnest_tokens(trigram, `Preferred.Qualifications`,token = "ngrams", n = 3) %>%
+  separate(trigram, c("word1", "word2","word3"), sep = " ") %>%  
+  filter(
+    !word1 %in% stop_words$word,                 # remove stopwords from both words in bi-gram
+    !word2 %in% stop_words$word,
+    !str_detect(word1, pattern = "[[:digit:]]"), # removes any words with numeric digits
+    !str_detect(word2, pattern = "[[:digit:]]"),
+    !str_detect(word3, pattern = "[[:digit:]]"),    
+    !str_detect(word1, pattern = "[[:punct:]]"), # removes any remaining punctuations
+    !str_detect(word2, pattern = "[[:punct:]]"),
+    !str_detect(word3, pattern = "[[:punct:]]"),    
+    !str_detect(word1, pattern = "(.)\\1{2,}"),  # removes any words with 3 or more repeated letters
+    !str_detect(word2, pattern = "(.)\\1{2,}"),
+    !str_detect(word3, pattern = "(.)\\1{2,}"),    
+    !str_detect(word1, pattern = "\\b(.)\\b"),   # removes any remaining single letter words
+    !str_detect(word2, pattern = "\\b(.)\\b"),
+    !str_detect(word3, pattern = "\\b(.)\\b"),    
+    !word1 %in% ngram_list,                 # remove stopwords from both words in bi-gram
+    !word2 %in% ngram_list,
+    !word3 %in% ngram_list
+    ) %>%
+  unite("trigram", c(word1, word2, word3), sep = " ") %>%
+  count(trigram) %>%
+  filter(n >= 500) %>% # filter for bi-grams used 500 or more times
+  spread(trigram, n) %>%                 # convert to wide format
+  map_df(replace_na, 0)                 # replace NAs with 0
+
+Pref_freq_tri_tall <- as.data.frame(t(Pref_freq_tri))
+Pref_freq_tri_tall  <- tibble::rownames_to_column(Pref_freq_tri_tall, "Keywords")
+Pref_freq_tri_tall <- Pref_freq_tri_tall[order(-Pref_freq_tri_tall$V1),]
+#knitr:: kable(head(Pref_freq_tri_tall,10))
+
+Pref_freq_tri_tall = mutate(Pref_freq_tri_tall, one_pct = round((V1 / sum(V1))*100))
+
+
+head(Pref_freq_tri_tall,10) %>% arrange(one_pct) %>%  mutate(Keywords = fct_reorder(Keywords, one_pct)) %>%
+ggplot(aes( x=Keywords,y=one_pct)) + 
+    geom_bar( stat="identity",color="black")+
+    geom_text(aes(label=paste0(one_pct,"%")),color = "orange",hjust=1,vjust=0.3)+
+  theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+  coord_flip()+
+    xlab("")+ ylab("Percentage of Frequency")+
+  theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+   ggtitle("Percentage of Three Words Frequencies") + 
+     theme(plot.title = element_text(lineheight=.8, face="bold"))
+
+```
+
+
+#### Creating dictionaries based on the observed "One Word", "Two Words" and "Three Words" frequency counts. These trends are used to create two different sets of skills - **Technical skills** and **Soft skills**. Thus, we can conclude that statistics is both science and art!
+
+```{r,results= "asis" }
+soft_skills <- dictionary(list(Professional_Experience = c('demonstrated ability','track record','proven ability','experience building','professional'),Leadership = c('leadership principles','	affirmative action','fast paced','lead','leadership','guide'),Communication = c('written communication','communication skills','verbal'), Management = c('management','mba'), Business_Knowledge = c('Business'), Commitment = c('committed','commitment'), Deep_dive = c('deep dive','investigate','dive'), Learning = c('learning','learner','curious','inquisitive'), Creativity = c('creative','design','visual'), Problem_Solver = c('solver','puzzle','problem','framework','complex','thinker'),Confidence = c('confidence','believe')))
+
+technical_skills <- dictionary(list(General_Coding = c('code','coding standards','source control','programming'),Software_Development = c('software development','software engineering'),Subject_Matter_Expert = c('subject matter'),Computer_Science = c('computer science'), Python = c('Python','python'), Database = c('database','Teradata'),SQL = 'SQL',R = 'R',Statistics = c('statistics', 'stats'),C_Family =c('C','C++','C#'),Java = 'Java',Perl = 'Perl', Scala = 'Scala',Machine_Learning = c('machine learning','deep learning','Tensorflow'),AI = c('ai','artificial intelligence','iot','AI'),Julia = 'Julia',Matlab  = 'Matlab',Big_Data = c('big data','Apache Spark','Azure','Apache Hive','Hadoop'),Other_Statiscal_tools = c('SAS', 'minitab','SPSS','prism'),Tableau= c('Tableau','power bi'),Business_Intelligence = c('BI','bi','business intelligence')))
+
+all_skills =  dictionary(list(Professional_Experience = c('demonstrated ability','track record','proven ability','experience building','professional'),Leadership = c('leadership principles','	affirmative action','fast paced','lead','leadership','guide'),Communication = c('written communication','communication skills','verbal'), Management = c('management','mba'), Business_Knowledge = c('Business'), Commitment = c('committed','commitment'), Deep_dive = c('deep dive','investigate','dive'), Learning = c('learning','learner','curious','inquisitive'), Creativity = c('creative','design','visual'), Problem_Solver = c('solver','puzzle','problem','framework','complex','thinker'),Confidence = c('confidence','believe'),General_Coding = c('code','coding standards','source control','programming'),Software_Development = c('software development','software engineering'),Subject_Matter_Expert = c('subject matter'),Computer_Science = c('computer science'), Python = c('Python','python'), Database = c('database','Teradata'),SQL = 'SQL',R = 'R',Statistics = c('statistics','Minitab', 'stats'),C_family =c('C','C++','C#'),Java = 'Java',Perl = 'Perl', Scala = 'Scala',Machine_Learning = c('machine learning','deep learning','Tensorflow'),AI = c('ai','artificial intelligence','iot','AI'),Julia = 'Julia',Matlab  = 'Matlab',Big_data = c('big data','Apache Spark','Azure','Apache Hive','Hadoop'),Other_Statiscal_tools = c('SAS', 'minitab','SPSS','prism'),Tableau= c('Tableau','power bi'),Business_Intelligence = c('BI','bi','business intelligence')))
+
+R_python_Matlab_other <- dictionary(list(R = 'R',Python = c('Python','python'),Matlab ='matlab', Other_Statiscal_tools = c('SAS', 'minitab','SPSS','prism')))
+```
+
+
+#### The most important **Soft skills** are: 
+```{r,results= "asis"}
+
+data_dict<-dfm(amzn_jobs_latest$Preferred.Qualifications, dictionary=soft_skills)
+top_soft <- as.data.frame(topfeatures(data_dict))
+top_soft <- tibble::rownames_to_column(top_soft, "Keywords")
+colnames(top_soft) <- c("Keywords","freq")
+top_soft = mutate(top_soft, skills_pct = round((freq / sum(freq))*100))
+
+top_soft %>% arrange(skills_pct) %>%  mutate(Keywords = fct_reorder(Keywords, skills_pct)) %>%
+ggplot(aes( x=Keywords,y=skills_pct)) + 
+    geom_bar( stat="identity",color="black")+
+    geom_text(aes(label=paste0(skills_pct,"%")),color = "orange",hjust=1,vjust=0.3)+
+  theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+  coord_flip()+
+    xlab("")+ ylab("")+
+  theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+   ggtitle("Top Soft Skills for 'Data Science' at Amazon") + 
+     theme(plot.title = element_text(lineheight=.8, face="bold"))
+
+```
+
+
+#### The most important **Technical skills** are:
+```{r,results= "asis"}
+
+data_dict2<-dfm(amzn_jobs_latest$Preferred.Qualifications, dictionary=technical_skills)
+top_tech <- as.data.frame(topfeatures(data_dict2))
+top_tech <- tibble::rownames_to_column(top_tech, "Keywords")
+colnames(top_tech) <- c("Keywords","freq")
+top_tech = mutate(top_tech, skills_pct = round((freq / sum(freq))*100))
+
+top_tech %>% arrange(skills_pct) %>%  mutate(Keywords = fct_reorder(Keywords, skills_pct)) %>%
+ggplot(aes( x=Keywords,y=skills_pct)) + 
+    geom_bar( stat="identity",color="black")+
+    geom_text(aes(label=paste0(skills_pct,"%")),color = "orange",hjust=1,vjust=0.3)+
+  theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+  coord_flip()+
+    xlab("")+ ylab("")+
+  theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+   ggtitle("Top Technical Skills for 'Data Science' at Amazon") + 
+     theme(plot.title = element_text(lineheight=.8, face="bold"))
+```
+
+#### Conclusion
+
+Now, let's combine both soft skills and technical skills and find the top Data Science skills at **Amazon**. We find that **8 out of top 10** skills required at Amazon are **Soft Skills**. So, when you prepare for an interview at Amazon next time, be sure to focus on highlighting your **"Soft Skills"** 
+
+```{r,results= "asis"}
+
+data_dict4<-dfm(amzn_jobs_latest$Preferred.Qualifications, dictionary=all_skills)
+top_skill <- as.data.frame(topfeatures(data_dict4))
+top_skill <- tibble::rownames_to_column(top_skill, "Keywords")
+colnames(top_skill) <- c("Keywords","freq")
+top_skill = mutate(top_skill, skills_pct = round((freq / sum(freq))*100))
+
+top_skill %>% arrange(skills_pct) %>%  mutate(Keywords = fct_reorder(Keywords, skills_pct)) %>%
+ggplot(aes( x=Keywords,y=skills_pct)) + 
+    geom_bar( stat="identity",color="black")+
+    geom_text(aes(label=paste0(skills_pct,"%")),color = "orange",hjust=1,vjust=0.3)+
+  theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+  coord_flip()+
+    xlab("")+ ylab("")+
+  theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+   ggtitle("Top Technical Skills for 'Data Science' at Amazon") + 
+     theme(plot.title = element_text(lineheight=.8, face="bold"))
+
+```
+
+```{r skills_image, results="asis", echo =FALSE}
+knitr::include_graphics("https://www.women-in-technology.com/hs-fs/hubfs/Soft-skills-vs-technical-skills-compressor.jpeg?width=827&name=Soft-skills-vs-technical-skills-compressor.jpeg")
+```
+
+#### Bonus: Let's find the most popular statistical tool among **Python**, **R**, **Matlab** and others at **Amazon**
+
+```{r,results= "asis"}
+
+data_dict3<-dfm(amzn_jobs_latest$Preferred.Qualifications, dictionary=R_python_Matlab_other)
+top_stats <- as.data.frame(topfeatures(data_dict3))
+top_stats <- tibble::rownames_to_column(top_stats, "Keywords")
+colnames(top_stats) <- c("Keywords","freq")
+top_stats = mutate(top_stats, skills_pct = round((freq / sum(freq))*100))
+
+top_stats %>% arrange(skills_pct) %>%  mutate(Keywords = fct_reorder(Keywords, skills_pct)) %>%
+ggplot(aes( x=Keywords,y=skills_pct)) + 
+    geom_bar( stat="identity",color="black")+
+    geom_text(aes(label=paste0(skills_pct,"%")),color = "orange",hjust=1,vjust=0.3)+
+  theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+  coord_flip()+
+    xlab("")+ ylab("")+
+  theme( axis.line = element_line(colour = "black", 
+                      size = 1, linetype = "solid"))+
+   ggtitle("Top Statistical Tools for 'Data Science' at Amazon") + 
+     theme(plot.title = element_text(lineheight=.8, face="bold"))
+```
 
 
 ## Supporting Scripts

@@ -5,7 +5,7 @@ library(quanteda)
 library(gtools)
 
 # Import the DB Connection function
-source("R script segments for presentation/FUNCTIONS/get_db_connection.R")
+source("functions/get_db_connection.R")
 
 # connect to AWS DB
 # prompt for input 
@@ -36,18 +36,22 @@ dfmat_null<-dfm(null_corpus,
                 remove_punct = TRUE)
 
 data_sum<-colSums(dfmat_data)
-data_words<-names(dfmat_data)
+data_words<-colnames(dfmat_data)
 
-df_data<-rbind(data_words,data_sum)%>%
-  df_data[2,]
+df_data<-rbind(data_words,data_sum)
 
 null_sum<-colSums(dfmat_null)
 
-null_words<-names(dfmat_null)
+null_words<-colnames(dfmat_null)
 
 df_null<-rbind(null_words,null_sum)
 
 df_dat_null<-smartbind(df_data,df_null, fill=0)
+
+# Filter out the columns we need
+df_dat_null<-t(df_dat_null)%>%
+  as.data.frame()%>%
+  select("1:2","2:2")
 
 column_names<-c("data","null")
 test<-t(df_dat_null)
@@ -75,12 +79,6 @@ df_final<-as.data.frame(df_final)
 df_final1<-df_final%>%
   arrange(desc(delta))
 view(df_final1)
-
-
-
-
-
-
 
 
 df_final1$delta<-as.integer(df_final1$delta)
