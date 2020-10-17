@@ -4,16 +4,18 @@ library(ggplot2)
 library(tidytext)
 library(stringr)
 
-key_api<-"qU2NfkJlLgTvbVR73JvJxKWXJ"
-secret_api<-"MM8sOrlo2n3LQVNpNqYtLEKjv7Aa7GBBDzPqNfDid1x9k6Xkxl"
-token_acces<-"144713953-zjghANhbh4CYoiyCQq5a0MvCKKskY42P4Sa82SEn"
-token_secret<-"gHBcVW1q50U57refumM5cvfcMMeoWc8jMs54hDqgKfVui"
+#Access to security file
+password_file<-"C:\\password-files-for-r\\twitter_api.csv"
 
-setup_twitter_oauth(key_api,secret_api,token_acces,token_secret)
+passwords<-read.csv(password_file)
+# read in login credentials
+setup_twitter_oauth(passwords$key_api,
+                    passwords$secret_api,
+                    passwords$token_acces,
+                    passwords$token_secret)
 
-#Test search
+#search hashtag
 tweets_ds<-searchTwitter('#DataScience',n=1000)
-
 
 #transform tweets list into a data frame
 tweets.df4<-twListToDF(tweets_ds)
@@ -26,14 +28,14 @@ just_hash<-str_extract_all(just_text,pattern)
 
 just_hash_unlist<-just_hash%>%unlist()
 
+#extract single words from hashtag
 word.df<-data.frame("word"=just_hash_unlist)
 
-
+#group repeated words and count them
 unique_word<-word.df%>%
   group_by(word)%>%
   summarize(word_count=n_distinct(word))%>%
   arrange(word_count)
-
 
 count_word<-word.df%>%
   filter(word!="DataScience")%>%
@@ -41,10 +43,11 @@ count_word<-word.df%>%
   summarize(word_count=sum(!is.na(word)))%>%
   arrange(desc(word_count))
 
+#Filter only words that are mentioned more than 20 times
 count_word_cut<-count_word%>%
   filter(word_count>20)
 
-
+#ggplot
 ggplot(count_word_cut, mapping=aes(x=reorder(word,word_count),y=word_count))+
   geom_bar(stat="identity")+
   coord_flip() +
