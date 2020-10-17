@@ -6,8 +6,8 @@ Our group embarked on the quest to find an answer to the title question. Our app
 ### Folder Organization
   
   `
-    .
-    
+  .
+   
     ├── data                                # Supporting data for quick running rmd files
     
     ├── docs                                # Documentation files (alternatively `doc`)
