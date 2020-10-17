@@ -1,0 +1,188 @@
+---
+title: "LinkedIn Data Scientist Jobs"
+author: "LeTicia Cancel"
+date: "10/14/2020"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Introduction
+
+Below is code for scrapping Data Scientist job postings from LinkedIn.com using rvest. The goal of this scrape is to answer the question “Which are the most valued data science skills?” The code below was also used by my teammates to create functions that could be called to extract the same data, or to possibly create an R package.
+
+Libraries needed for extraction, tidying, and analysis
+```{r message=FALSE, warning=FALSE}
+library(rvest)
+library(dplyr)
+library(tidytext)
+library(janeaustenr)
+library(ggplot2)
+library(igraph)
+library(stringr)
+library(tidyr)
+library(wordcloud2)
+library(htmlwidgets) #package to export wordcloud image
+library(webshot) #package to export wordcloud image as png or pdf
+```
+
+
+# Web Scrapping
+
+Job postings with the job title Data Scientist in Brooklyn, NY were scrapped. The company name, location, number of applicants, and job description were pulled. Unfortunately, I was only able to pull 25 jobs using this method. If you visit the www.LinkedIn.com, you’ll see that the jobs load with a continuous scroll instead separate pages. This limited the number of postings I was able to access using rvest.  
+```{r message=FALSE, warning=FALSE}
+#URL for Data Scientist jobs in Brooklyn NY
+url <- "https://www.linkedin.com/jobs/search?keywords=data%20scientist&location=Brooklyn%2C%20New%20York%2C%20United%20States&geoId=&trk=homepage-jobseeker_jobs-search-bar_search-submit&redirect=false&position=1&pageNum=0"
+linkedIn <- read_html(url)
+
+#unique url for each job
+jobURL <- linkedIn %>%
+  html_nodes("div") %>%
+  html_nodes(".result-card__full-card-link") %>%
+  html_attr("href") %>%
+  as.character()
+
+#loop to pull job posting information from each unique url
+for (x in 1:length(jobURL)) {
+  url <- read_html(jobURL[x])
+    
+  #job title
+  jobTitle <- url %>%
+    html_nodes(".topcard__title") %>%
+    html_text() %>%
+    data.frame(Job_Title = ., stringsAsFactors = F)
+    
+  #company
+  company <- url %>%
+    html_nodes(".topcard__flavor--black-link") %>%
+    html_text() %>%
+    data.frame(Company_Name = ., stringsAsFactors = F)
+    
+  #location
+  location <- url %>%
+    html_nodes(".topcard__flavor.topcard__flavor--bullet") %>%
+    html_text() %>%
+    data.frame(Company_Location = ., stringsAsFactors = F)
+    
+  #number of applicants
+  applicants <- url %>%
+    html_nodes(".num-applicants__caption") %>%
+    html_text() %>%
+    data.frame(Num_Apps = ., stringsAsFactors = F)
+    
+  #description
+  description <- url %>%
+    html_nodes(".description__text") %>%
+    html_text() %>%
+    data.frame(Job_Description = ., stringsAsFactors = F)
+  
+  if(x==1){
+    linkedInJobs2 <- cbind(jobTitle,company,location,applicants,description)
+  }
+  else{
+    
+    combine_rows <- cbind(jobTitle,company,location,applicants,description)
+    
+    linkedInJobs2 <- rbind(linkedInJobs2,combine_rows)
+  }
+}
+
+#Dataframe of collected job posting information
+head(linkedInJobs2)
+```
+# Tidy the data
+
+The job descriptions need to be tidied so we can analyze what companies are looking for in a data scientist. Tidying will include extracting and counting individual words, removing stop words such as “the”, “a”, and “and”. 
+```{r message=FALSE, warning=FALSE}
+#get total count of single words from job descriptions and remove stop words
+job_words <- linkedInJobs2 %>%
+  unnest_tokens(word,Job_Description) %>%
+  anti_join(get_stopwords()) %>%
+  count(Job_Title, word, sort = TRUE)
+
+head(job_words)
+
+
+#get count of bigrams, words that appear together
+job_bigrams <- linkedInJobs2 %>%
+  unnest_tokens(bigram, Job_Description, token = "ngrams", n = 2)
+
+head(job_bigrams)
+
+#separate the bigram for further tidying
+job_bigrams_sep <- job_bigrams %>%
+  separate(bigram,c("word1","word2", sep = " "))
+
+head(job_bigrams_sep)
+
+#remove stopwords from separated bigram
+job_bigrams_filt <- job_bigrams_sep %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word) 
+
+head(job_bigrams_filt)
+
+#do a count of remaining words and unite both words into a single column
+job_bigrams_united <- job_bigrams_filt %>%
+  unite(bigram, word1, word2, sep = " ")
+
+job_bigrams_count <- job_bigrams_united %>%
+  count(Job_Title, bigram)
+
+head(job_bigrams_count)
+```
+
+
+# Analysis
+
+The bar plots below look at the frequency of words in all the job descriptions. The words data, science, and scientist were excluded from this analysis since those are the words used in the job descriptions and it will skew that data. Other words such as years, and work were also removed. The first chart looks at the top 20 single words. It is easy to point out which words are frequently used, but it does not really give us much information besides frequency.
+```{r message=FALSE, warning=FALSE}
+#plot of top 20 single words
+job_words %>%
+  group_by(word) %>%
+  filter(!word %in% c("data","scientist","science","experience","new","work","years","working","less","help","skills","ability","using","health")) %>%
+  summarise(total = sum(n), sort = TRUE) %>%
+  arrange(desc(total)) %>%
+  mutate(word = factor(word, levels = rev(unique(word)))) %>%
+  top_n(20, total) %>%
+  ggplot(aes(word, total)) +
+  geom_col() + 
+  coord_flip()
+```
+The bigram gives us more information on what employers are looking for and it looks like most frequently used bigrams are hard skills. Machine learning is the top skill out of all skills and happens to be a hard skill. The top soft skill in communication. 
+```{r message=FALSE, warning=FALSE}
+#plot of top 20 bigrams
+job_bigrams_count %>%
+  group_by(bigram) %>%
+  filter(!bigram %in% c("data scientist","data science","cvs health","veteran status","sexual orientation","gender identity","york city","national origin")) %>%
+  summarise(total = sum(n), sort = TRUE) %>%
+  arrange(desc(total)) %>%
+  mutate(bigram = factor(bigram, levels = rev(unique(bigram)))) %>%
+  top_n(20, total) %>%
+  ggplot(aes(bigram, total,)) +
+  geom_col() + 
+  coord_flip()
+```
+# Visualization 
+
+I used a wordcloud to create a visualization of the top 50 words used in LinkedIn job descriptions for Data Scientist jobs. Computer Science is important to employers along with communication skills, data visualization, and predictive models.  
+```{r message=FALSE, warning=FALSE}
+#Dataframe of top 50 bigrams
+job_bigrams_count2 <- job_bigrams_united %>% count(bigram) %>% filter(!bigram %in% c("data scientist","data science","cvs health","veteran status","sexual orientation","gender identity","york city","national origin","equal opportunity","opportunity employer","employment opportunity")) %>% top_n(50)
+
+#wordcloud of top 50 words
+wordcloud2(data = job_bigrams_count2, size = 1, minRotation = -pi/5, maxRotation = -pi/5, rotateRatio = 1)
+
+#Save wordcloud so it can be exported
+my_graph <- wordcloud2(data = job_bigrams_count2, size = 1, minRotation = -pi/6, maxRotation = -pi/6, rotateRatio = 1)
+
+#wordcloud image saved to html file
+saveWidget(my_graph,"linkedin_graph.html",selfcontained = F)
+```
+
