@@ -5,15 +5,16 @@ Our group embarked on the quest to find an answer to the title question. Our app
 
 ### Folder Organization
   
-  .
-  ├── data                                # Supporting data for quick running rmd files
-  ├── docs                                # Documentation files (alternatively `doc`)
-  ├── analysis                            # Some of the individual analysis files
-  ├── functions                           # commonly used functions
-  ├── images                              # Images used in the reports
-  ├── R script segments for presentation  # This folder contains several scraper functions and analysis organized for the presentation
-  └── README.md`
-
+  `
+    .
+    ├── data                                # Supporting data for quick running rmd files
+    ├── docs                                # Documentation files (alternatively `doc`)
+    ├── analysis                            # Some of the individual analysis files
+    ├── functions                           # commonly used functions
+    ├── images                              # Images used in the reports
+    ├── R script segments for presentation  # This folder contains several scraper functions and analysis organized for the presentation
+    └── README.md
+`
 ### Credits
 
 - Bharani Nittala
