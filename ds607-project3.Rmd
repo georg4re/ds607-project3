@@ -33,7 +33,6 @@ unique_word<-word.df%>%
   summarize(word_count=n_distinct(word), .groups = 'drop_last')%>%
   arrange(word_count)
 
-
 count_word<-word.df%>%
   filter(word!="DataScience")%>%
   group_by(word)%>%
@@ -76,3 +75,42 @@ Being able to query the job listings in LinkedIn would be an invaluable resource
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+
+
+## Supporting Scripts
+
+As part of this project we wrote several supporting scripts and functions that helped us organize, scrape, and make the overall project more efficient.  Here we list some of them but you can find them all within the appropriate folders:
+
+
+- *functions*. Holds common functionality
+
+- *scraping*. Holds the scraping functions
+
+### AWS Connection Script
+
+```{r eval=FALSE}
+library(DBI)
+library(tidyverse)
+
+getDbConnection <- function() {
+  # This function returns a DB Connection to AWS
+  password_file<-"C:\\password-files-for-r\\AWS_login.csv"
+  
+  # read in login credentials
+  df_login<-read.csv(password_file)
+  
+  # Uncomment this next line to see the values 
+  # cat("Host: ", vardb_host, " Schema=", vardb_schema, " username=", vardb_user, " password=", vardb_password)
+  mydb = dbConnect(RMySQL::MySQL(), 
+                   user=df_login$login_name, 
+                   password=df_login$login_password, 
+                   port=3306, 
+                   dbname=df_login$login_schema, 
+                   host=df_login$login_host)
+  
+  return(mydb)
+}
+```
+
