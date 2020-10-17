@@ -2,54 +2,40 @@
 library(DBI)
 library(tidyverse)
 library(quanteda)
+library(gtools)
 
-password_file<-"C:\\password-files-for-r\\AWS_login.csv"
+# Import the DB Connection function
+source("R script segments for presentation/FUNCTIONS/get_db_connection.R")
 
-passwords<-read.csv(password_file)
-# read in login credentials
-df_login <- passwords   # read in login credentials
-
-vardb_user <- df_login$login_name
-vardb_password <- df_login$login_password
-vardb_schema <- df_login$login_schema
-vardb_host <- df_login$login_host
-
-#cat("Host: ", vardb_host, " Schema=", vardb_schema, " username=", vardb_user, " password=", vardb_password)
-
-
-mydb = dbConnect(RMySQL::MySQL(), user=vardb_user,  password=vardb_password, port=3306, dbname=vardb_schema, host=vardb_host)
+# connect to AWS DB
+# prompt for input 
+mydb <- getDbConnection()
 
 #load dbs
-
 dbListTables(mydb)
 
+#read the data from the tables
 df_data<-dbReadTable(mydb,"nyc_data_scrape")
-
 df_null<-dbReadTable(mydb,"null_linkedin")
 
-
 #pull out descriptions as vector
-
 jobs_vector<-as.vector(df_data$description)
-
 null_vector<-as.vector(df_null$description)
 
 job_corpus<-corpus(jobs_vector)
-
 null_corpus<-corpus(null_vector)
 
 dfmat_data<-dfm(job_corpus,
                 remove = stopwords("english"), 
-                stem = FALSE, remove_punct = TRUE
-)
+                stem = FALSE,
+                remove_punct = TRUE)
 
 dfmat_null<-dfm(null_corpus,
                 remove = stopwords("english"), 
-                stem = FALSE, remove_punct = TRUE
-)
+                stem = FALSE, 
+                remove_punct = TRUE)
 
 data_sum<-colSums(dfmat_data)
-
 data_words<-names(dfmat_data)
 
 df_data<-rbind(data_words,data_sum)%>%
@@ -116,4 +102,5 @@ ggplot(gg_output, aes(x=reorder(word,delta), delta))+
   labs(title="Largest difference in count between a null scrape and a scrape for 'data science'")+
   ylab("words")+
   xlab("total difference")
+
 
