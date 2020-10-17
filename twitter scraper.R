@@ -4,32 +4,18 @@ library(ggplot2)
 library(tidytext)
 library(stringr)
 
-
-<<<<<<< Updated upstream:twitter scraper.R
-key_api<-"xxx"
-secret_api<-"wxxn"
-token_acces<-"xxx"
-token_secret<-"xxxx"
-=======
-#put my password csv on a private github 
-#so i can get it from any computer
-location<-"C:\\password-files-for-r\\twitter_passwords.csv"
-twitter_passwords<-read.csv(location)
->>>>>>> Stashed changes:twitter scraper_no_password.R
-
-
+key_api<-"qU2NfkJlLgTvbVR73JvJxKWXJ"
+secret_api<-"MM8sOrlo2n3LQVNpNqYtLEKjv7Aa7GBBDzPqNfDid1x9k6Xkxl"
+token_acces<-"144713953-zjghANhbh4CYoiyCQq5a0MvCKKskY42P4Sa82SEn"
+token_secret<-"gHBcVW1q50U57refumM5cvfcMMeoWc8jMs54hDqgKfVui"
 
 setup_twitter_oauth(key_api,secret_api,token_acces,token_secret)
 
 #Test search
-
-
 tweets_ds<-searchTwitter('#DataScience',n=1000)
 
 
 #transform tweets list into a data frame
-
-
 tweets.df4<-twListToDF(tweets_ds)
 
 just_text<-tweets.df4$text%>%unlist()
@@ -63,3 +49,4 @@ ggplot(count_word_cut, mapping=aes(x=reorder(word,word_count),y=word_count))+
   geom_bar(stat="identity")+
   coord_flip() +
   labs(title="Twitter Scrape for hashtags when #DataScience is Used",x="hashtags", y="count")
+

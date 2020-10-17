@@ -1,0 +1,59 @@
+---
+title: "Project 3"
+author: "Bar Raisers - Large Group Justified"
+date: "10/16/2020"
+output: html_document
+code_folding: hide
+---
+
+# DATA SCIENCE SKILLS THAT MATTER
+
+Our group embarked on the quest to find an answer to the title question. Our approach consisted of trying to identify the terms that are commonly tagged along with the Twitter handle #Datascience. This provides the keywords that are most often associated with ‘data science’. The top 20 de-duped keywords will serve as a dictionary for the analysis. It is important to note that, these keywords may not be used in professional job listings. To validate the findings from Twitter, professional job listing sites in the US such as LinkedIn and Indeed will be used. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+```
+
+### Getting Twitter Data
+
+To have access to the Twitter data, we used the twitteR package.  An API account and app had to be created to be able to access Twitter's API. After connecting to twitter, we asked for the top 1000 tweets containing the hashtag #DataScience.  We extracted the words from these tweets and got 5200 words. If we group and count the words that are repeated we get about 493 words.
+
+```{r echo=FALSE, warning=FALSE}
+word.df<-read.csv("data/twitter_words.csv")
+
+unique_word<-word.df%>%
+  group_by(word)%>%
+  summarize(word_count=n_distinct(word), .groups = 'drop_last')%>%
+  arrange(word_count)
+
+
+count_word<-word.df%>%
+  filter(word!="DataScience")%>%
+  group_by(word)%>%
+  summarize(word_count=sum(!is.na(word)))%>%
+  arrange(desc(word_count))
+
+knitr::kable(head(count_word))
+```
+
+```{r}
+count_word_cut<-count_word%>%
+  filter(word_count>20)
+
+ggplot(count_word_cut, mapping=aes(x=reorder(word,word_count),y=word_count))+
+  geom_bar(stat="identity")+
+  coord_flip() +
+  labs(title="Twitter Scrape for hashtags when #DataScience is Used",x="hashtags", y="count")
+
+```
+
+## LinkedIn
+
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
