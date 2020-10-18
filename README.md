@@ -27,20 +27,17 @@ To access the AWS DB, you need to setup a credentials file.  The system looks fo
 This folder is called: `C:\password-files-for-r`
 In this folder, set up a csv file called: `AWS_login` with the following values: 
 
-`
-login_name,login_password,login_schema,login_host
+`login_name,login_password,login_schema,login_host`
 
-<login_name>,<login_password>,<login_schema>,<login_host>
-`
+`<login_name>,<login_password>,<login_schema>,<login_host>`
+
 Replace the second row with the proper values.
 
 Access to the Twitter API follows the same procedure, place a file called: `twitter_api` in the same folder outside of the project's root folder. 
 
-`
-key_api, secret_api, token_acces, token_secret
+`key_api, secret_api, token_acces, token_secret`
 
-<key_api>, <secret_api>, <token_acces>, <token_secret>
-`
+`<key_api>, <secret_api>, <token_acces>, <token_secret>`
 
 
 ### Credits
